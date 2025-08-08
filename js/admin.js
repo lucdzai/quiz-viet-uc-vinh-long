@@ -9,6 +9,12 @@ let charts = {};
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🎯 Admin Dashboard Loading...');
     
+    // Listen for connection status updates
+    window.addEventListener('connectionStatusUpdate', function(event) {
+        const { online } = event.detail;
+        updateConnectionDisplay(online);
+    });
+    
     // Set up auto-refresh
     setInterval(refreshDashboard, 30000); // Refresh every 30 seconds
     
@@ -76,17 +82,39 @@ async function checkConnection() {
     
     try {
         const online = await Database.testConnection();
-        if (online) {
-            statusElement.textContent = '✅ Google Sheets - Hoạt động';
-            statusElement.className = 'connection-status status-online';
-            isOnline = true;
-        } else {
-            throw new Error('Connection failed');
-        }
+        updateConnectionDisplay(online);
+        return online;
     } catch (error) {
+        console.error('Connection check failed:', error);
+        updateConnectionDisplay(false);
+        return false;
+    }
+}
+
+// Update connection display
+function updateConnectionDisplay(isOnline) {
+    const statusElement = document.getElementById('connection-status');
+    
+    if (isOnline) {
+        statusElement.textContent = '✅ Google Sheets - Hoạt động';
+        statusElement.className = 'connection-status status-online';
+        isOnline = true;
+        
+        // Show success notification
+        showNotification('🟢 Kết nối Google Sheets thành công!', 'success');
+    } else {
         statusElement.textContent = '❌ Offline - Dùng localStorage';
         statusElement.className = 'connection-status status-offline';
         isOnline = false;
+        
+        // Show warning notification
+        showNotification('🟡 Chế độ offline - Dữ liệu được lưu locally', 'warning');
+    }
+    
+    // Update data source indicator
+    const dataSourceElement = document.getElementById('data-source');
+    if (dataSourceElement) {
+        dataSourceElement.textContent = isOnline ? 'Google Sheets + localStorage' : 'localStorage only';
     }
 }
 
@@ -506,7 +534,31 @@ function loadSettings() {
 }
 
 function testConnection() {
-    checkConnection();
+    showLoading('Đang test kết nối đến Google Apps Script...');
+    
+    checkConnection().then(online => {
+        hideLoading();
+        
+        if (online) {
+            showNotification('✅ Kết nối Google Apps Script thành công!', 'success');
+            
+            // Additional test: try to get stats
+            Database.getStats().then(result => {
+                if (result.success) {
+                    showNotification('✅ API hoạt động bình thường - Có thể lấy dữ liệu', 'success');
+                }
+            }).catch(error => {
+                showNotification('⚠️ Kết nối OK nhưng có lỗi API: ' + error.message, 'warning');
+            });
+        } else {
+            showNotification('❌ Không thể kết nối đến Google Apps Script', 'error');
+            
+            // Show troubleshooting tips
+            setTimeout(() => {
+                showNotification('💡 Kiểm tra: 1) URL script đúng, 2) Deploy "Anyone", 3) CORS headers', 'info');
+            }, 2000);
+        }
+    });
 }
 
 function showSetupGuide() {
@@ -522,7 +574,35 @@ function clearLocalData() {
 }
 
 function syncData() {
-    showNotification('Tính năng đồng bộ đang phát triển', 'info');
+    showLoading('Đang đồng bộ dữ liệu với Google Sheets...');
+    
+    // Check if GoogleSheets integration is available
+    if (typeof GoogleSheets !== 'undefined') {
+        GoogleSheets.syncOfflineData().then(result => {
+            hideLoading();
+            if (result.synced > 0) {
+                showNotification(`✅ Đã đồng bộ ${result.synced} bản ghi`, 'success');
+                refreshDashboard(); // Refresh to show updated data
+            } else {
+                showNotification('ℹ️ Không có dữ liệu cần đồng bộ', 'info');
+            }
+        }).catch(error => {
+            hideLoading();
+            showNotification('❌ Lỗi đồng bộ: ' + error.message, 'error');
+        });
+    } else {
+        hideLoading();
+        
+        // Fallback: manual sync attempt
+        ConnectionStatus.check().then(online => {
+            if (online) {
+                showNotification('🔄 Kết nối đã được khôi phục - Dữ liệu mới sẽ tự động đồng bộ', 'success');
+                refreshDashboard();
+            } else {
+                showNotification('❌ Không thể kết nối đến Google Sheets', 'error');
+            }
+        });
+    }
 }
 
 function backupData() {

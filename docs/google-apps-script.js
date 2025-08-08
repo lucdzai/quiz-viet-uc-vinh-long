@@ -29,20 +29,32 @@ function doPost(e) {
     
     console.log('Action:', action);
     
+    let result;
     switch (action) {
       case 'saveUser':
-        return saveUserData(data.data);
+        result = saveUserData(data.data);
+        break;
       case 'updateQuiz':
-        return updateQuizResult(data.userId, data.score, data.answers);
+        result = updateQuizResult(data.userId, data.score, data.answers);
+        break;
       case 'updateWheel':
-        return updateWheelResult(data.userId, data.prize);
+        result = updateWheelResult(data.userId, data.prize);
+        break;
       case 'updateFinal':
-        return updateFinalChoice(data.userId, data.choice, data.registrationData);
+        result = updateFinalChoice(data.userId, data.choice, data.registrationData);
+        break;
       case 'getStats':
-        return getStats();
+        result = getStats();
+        break;
+      case 'getAllData':
+        result = getAllData();
+        break;
       default:
         throw new Error('Unknown action: ' + action);
     }
+    
+    // Add CORS headers
+    return result;
     
   } catch (error) {
     console.error('Error in doPost:', error);
@@ -51,12 +63,17 @@ function doPost(e) {
         success: false,
         error: error.toString()
       }))
-      .setMimeType(ContentService.MimeType.JSON);
+      .setMimeType(ContentService.MimeType.JSON)
+      .setHeaders({
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type'
+      });
   }
 }
 
 /**
- * Handle GET requests for testing
+ * Handle GET requests for testing and preflight
  */
 function doGet(e) {
   return ContentService
@@ -65,7 +82,12 @@ function doGet(e) {
       message: 'Quiz Google Apps Script is running',
       timestamp: new Date().toISOString()
     }))
-    .setMimeType(ContentService.MimeType.JSON);
+    .setMimeType(ContentService.MimeType.JSON)
+    .setHeaders({
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type'
+    });
 }
 
 /**
@@ -107,7 +129,12 @@ function saveUserData(userData) {
         userId: userId,
         message: 'User data saved successfully'
       }))
-      .setMimeType(ContentService.MimeType.JSON);
+      .setMimeType(ContentService.MimeType.JSON)
+      .setHeaders({
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type'
+      });
       
   } catch (error) {
     console.error('Error saving user data:', error);
@@ -138,7 +165,12 @@ function updateQuizResult(userId, score, answers) {
         success: true,
         message: 'Quiz result updated successfully'
       }))
-      .setMimeType(ContentService.MimeType.JSON);
+      .setMimeType(ContentService.MimeType.JSON)
+      .setHeaders({
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type'
+      });
       
   } catch (error) {
     console.error('Error updating quiz result:', error);
@@ -171,7 +203,12 @@ function updateWheelResult(userId, prize) {
         success: true,
         message: 'Wheel result updated successfully'
       }))
-      .setMimeType(ContentService.MimeType.JSON);
+      .setMimeType(ContentService.MimeType.JSON)
+      .setHeaders({
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type'
+      });
       
   } catch (error) {
     console.error('Error updating wheel result:', error);
@@ -203,7 +240,12 @@ function updateFinalChoice(userId, choice, registrationData) {
         success: true,
         message: 'Final choice updated successfully'
       }))
-      .setMimeType(ContentService.MimeType.JSON);
+      .setMimeType(ContentService.MimeType.JSON)
+      .setHeaders({
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type'
+      });
       
   } catch (error) {
     console.error('Error updating final choice:', error);
@@ -238,10 +280,61 @@ function getStats() {
         success: true,
         ...stats
       }))
-      .setMimeType(ContentService.MimeType.JSON);
+      .setMimeType(ContentService.MimeType.JSON)
+      .setHeaders({
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type'
+      });
       
   } catch (error) {
     console.error('Error getting stats:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get all user data for admin dashboard
+ */
+function getAllData() {
+  try {
+    const sheet = getOrCreateSheet();
+    const data = sheet.getDataRange().getValues();
+    
+    // Skip header row and convert to objects
+    const users = data.slice(1).map(row => ({
+      timestamp: row[0],
+      id: row[1],
+      name: row[2],
+      phone: row[3],
+      classType: row[4],
+      userAgent: row[5],
+      ipAddress: row[6],
+      score: row[7],
+      quizCompletedAt: row[8],
+      prize: row[9],
+      wheelCompletedAt: row[10],
+      choice: row[11],
+      registrationData: row[12],
+      finalChoiceAt: row[13]
+    }));
+    
+    console.log('Retrieved all user data:', users.length, 'records');
+    
+    return ContentService
+      .createTextOutput(JSON.stringify({
+        success: true,
+        data: users
+      }))
+      .setMimeType(ContentService.MimeType.JSON)
+      .setHeaders({
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type'
+      });
+      
+  } catch (error) {
+    console.error('Error getting all data:', error);
     throw error;
   }
 }

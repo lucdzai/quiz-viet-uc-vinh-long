@@ -1,21 +1,123 @@
-# Google Sheets Integration Setup Guide
+# 🚀 Google Sheets Integration Setup Guide
 
 This guide will help you set up Google Sheets integration for centralized data collection from the quiz application.
 
-## Overview
+## 📊 Overview
 
 The quiz application integrates with Google Sheets through Google Apps Script to:
-- Collect user data from all participants
-- Store quiz results and scores
-- Track wheel spin results and prizes
-- Record final registration decisions
-- Provide real-time statistics
+- ✅ Collect user data from all participants
+- ✅ Store quiz results and scores
+- ✅ Track wheel spin results and prizes  
+- ✅ Record final registration decisions
+- ✅ Provide real-time statistics
+- ✅ Enable cross-device data synchronization
+- ✅ Support offline mode with localStorage fallback
 
-## Prerequisites
+## ⚡ Quick Start (5 minutes)
 
-- Google account
-- Basic understanding of Google Sheets and Google Apps Script
-- The quiz application files (already provided)
+### Step 1: Create Google Sheet
+1. Go to [Google Sheets](https://sheets.google.com)
+2. Create a new blank spreadsheet
+3. Name it "Quiz Data Collection"
+4. Copy the Sheet ID from URL: `https://docs.google.com/spreadsheets/d/[SHEET_ID]/edit`
+
+### Step 2: Create Google Apps Script  
+1. Go to [Google Apps Script](https://script.google.com)
+2. Click "New Project"
+3. Replace all code with the content from `docs/google-apps-script.js`
+4. Update `SPREADSHEET_ID` variable with your Sheet ID
+5. Save project (Ctrl+S)
+
+### Step 3: Deploy as Web App
+1. Click "Deploy" → "New deployment"  
+2. Type: "Web app"
+3. Execute as: "Me"
+4. Who has access: **"Anyone"** ⚠️ Important!
+5. Click "Deploy" and copy the web app URL
+
+### Step 4: Update Quiz Application
+1. Open `config.js` in your quiz application
+2. Replace `GOOGLE_SCRIPT_URL` with your web app URL
+3. Save and test the application
+
+✅ **Done!** Your quiz now saves data to Google Sheets with localStorage fallback.
+
+## 🔧 Technical Features
+
+### ✅ CORS Support
+- Proper CORS headers configured for all API responses
+- Supports cross-origin requests from any domain
+- Handles preflight OPTIONS requests
+
+### ✅ Error Handling & Retry Logic
+- Automatic retry (2 attempts) with exponential backoff
+- Graceful fallback to localStorage when Google Sheets is unavailable
+- User-friendly error messages and notifications
+
+### ✅ Real-time Data Sync
+- Admin dashboard refreshes every 30 seconds
+- Connection status indicator with health checks
+- Automatic offline/online mode detection
+
+### ✅ Data Backup & Export
+- localStorage serves as automatic backup
+- Manual data export (CSV, JSON)
+- Data synchronization when connection is restored
+
+## 📱 User Experience
+
+### For Quiz Takers:
+- ✅ Seamless experience regardless of backend status
+- ✅ Data automatically saved (online or offline)
+- ✅ No disruption if Google Sheets is temporarily unavailable
+
+### For Administrators:
+- ✅ Real-time dashboard with live statistics
+- ✅ Clear connection status indicators  
+- ✅ Data filtering and search capabilities
+- ✅ Export functionality for reporting
+- ✅ Mobile-responsive admin interface
+
+## 🛡️ Troubleshooting
+
+### Connection Issues
+
+**❌ "Offline - Dùng localStorage" status**
+- ✅ **Normal operation** - localStorage fallback is working
+- ⚠️ Check Google Apps Script URL in `config.js`
+- ⚠️ Verify web app deployed with "Anyone" access
+- ⚠️ Confirm CORS headers are included in Apps Script
+
+**❌ Data not appearing in Google Sheets**
+- Check Apps Script execution logs for errors
+- Verify `SPREADSHEET_ID` is correct in Apps Script
+- Test Apps Script manually with the `testScript()` function
+
+**❌ CORS errors in browser console**
+- This is expected behavior with external APIs
+- The application automatically falls back to localStorage
+- Users will see "🟡 Chế độ offline" notification
+
+### Testing the Integration
+
+1. **Admin Dashboard Test**:
+   - Open admin dashboard
+   - Check connection status indicator
+   - Click "🧪 Test kết nối" button
+   - Verify appropriate notifications appear
+
+2. **Data Flow Test**:
+   - Complete a test quiz submission
+   - Check if data appears in admin dashboard
+   - Verify localStorage contains the data
+   - If online, check Google Sheets for new row
+
+3. **Offline Mode Test**:
+   - Disconnect internet or use invalid script URL
+   - Submit quiz data 
+   - Verify "offline mode" notifications
+   - Check that data is saved to localStorage
+   - Restore connection and test sync functionality
 
 ## Step-by-Step Setup
 

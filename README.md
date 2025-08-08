@@ -1,6 +1,6 @@
 # Quiz Viet Uc Vinh Long - Google Sheets Integration
 
-A comprehensive quiz application for language center students with centralized data collection via Google Sheets.
+A comprehensive quiz application for language center students with **robust Google Sheets integration** and **offline-first design**.
 
 ## 🌟 Features
 
@@ -11,18 +11,26 @@ A comprehensive quiz application for language center students with centralized d
 - **Real-time statistics** and analytics
 - **QR code generation** for easy student access
 
+### 🔧 Fixed Google Sheets Integration
+- ✅ **CORS headers properly configured** - No more connection errors
+- ✅ **Enhanced error handling** with retry logic (2 attempts + exponential backoff)
+- ✅ **Real-time connection status** with detailed feedback
+- ✅ **Automatic fallback to localStorage** when Google Sheets is unavailable
+- ✅ **Cross-device data synchronization** - Submit from any device, view from anywhere
+- ✅ **Improved admin dashboard** with connection health monitoring
+
 ### Data Collection
 - **Google Sheets integration** for centralized data storage
-- **localStorage fallback** when offline
-- **Automatic data synchronization**
-- **Real-time admin dashboard**
+- **localStorage fallback** when offline  
+- **Automatic data synchronization** with conflict resolution
+- **Real-time admin dashboard** with 30-second refresh
 - **Data export** (CSV, JSON, Excel, PDF)
 
 ### Admin Features
 - **Enhanced admin dashboard** with charts and analytics
 - **User data management** with filtering and search
-- **Connection status monitoring**
-- **Offline mode support**
+- **Connection status monitoring** with troubleshooting tips
+- **Offline mode support** with sync notifications
 - **Backup and restore functionality**
 
 ## 🚀 Quick Start
