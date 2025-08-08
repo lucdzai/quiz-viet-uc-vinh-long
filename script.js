@@ -392,6 +392,9 @@ function showNotification(message, type = 'info') {
 // Hiển thị quiz
 function showQuiz() {
     document.getElementById('student-form').style.display = 'none';
+    document.getElementById('result-container').style.display = 'none';
+    document.getElementById('wheel-container').style.display = 'none';
+    document.getElementById('final-container').style.display = 'none';
     document.getElementById('quiz-container').style.display = 'block';
     
     const questions = questionsByClass[currentUser.classType];
@@ -520,6 +523,9 @@ async function submitQuiz() {
 // Hiển thị kết quả
 function showResult() {
     document.getElementById('quiz-container').style.display = 'none';
+    document.getElementById('student-form').style.display = 'none';
+    document.getElementById('wheel-container').style.display = 'none';
+    document.getElementById('final-container').style.display = 'none';
     document.getElementById('result-container').style.display = 'block';
     
     const container = document.getElementById('result-container');
@@ -637,6 +643,9 @@ const wheelPrizes = [
 // Hiển thị vòng quay
 function showWheel() {
     document.getElementById('result-container').style.display = 'none';
+    document.getElementById('quiz-container').style.display = 'none';
+    document.getElementById('student-form').style.display = 'none';
+    document.getElementById('final-container').style.display = 'none';
     document.getElementById('wheel-container').style.display = 'block';
     
     const container = document.getElementById('wheel-container');
@@ -904,9 +913,22 @@ function exportData() {
         return;
     }
     
-    let csv = 'Họ tên,Số điện thoại,Lớp học,Điểm,Thời gian,Trạng thái\n';
+    // Header với BOM cho UTF-8
+    const BOM = '\uFEFF';
+    let csv = BOM + 'Họ tên,Số điện thoại,Lớp học,Điểm quiz,Thời gian làm bài,Trạng thái,Phần thưởng\n';
+    
     users.forEach(user => {
-        csv += `"${user.name}","${user.phone}","${getClassDisplayName(user.classType)}","${user.score || 'Chưa làm'}","${new Date(user.timestamp).toLocaleString('vi-VN')}","${user.score >= 3 ? 'Đạt vòng quay' : 'Chưa đạt'}"\n`;
+        const name = (user.name || '').replace(/"/g, '""');
+        const phone = (user.phone || '').replace(/"/g, '""');
+        const classType = getClassDisplayName(user.classType || '').replace(/"/g, '""');
+        const score = user.score !== undefined ? `${user.score}/5` : 'Chưa làm';
+        const timestamp = user.timestamp ? new Date(user.timestamp).toLocaleString('vi-VN') : '';
+        const status = user.score >= 3 ? 'Đạt vòng quay' : 'Chưa đạt';
+        const prize = user.prize ? 
+            (typeof user.prize === 'string' ? user.prize : 
+             (user.prize.name ? user.prize.name : 'Không xác định')) : 'Không có';
+        
+        csv += `"${name}","${phone}","${classType}","${score}","${timestamp}","${status}","${prize}"\n`;
     });
     
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -1020,16 +1042,16 @@ function closeModal(confirmed) {
 function confirmPrizeRegistration() {
     showModal(
         '🎁 Xác Nhận Nhận Quà',
-        'Xác nhận đăng ký tham gia khóa học để nhận thưởng?<br><br><small><strong>Lưu ý:</strong> Đây là điều kiện chỉ khi tham dự khóa học mới được nhận thưởng.</small>',
-        '✅ Xác Nhận',
-        '❌ Hủy',
+        'Bạn có muốn đăng ký tham gia khóa học để nhận thưởng không?',
+        '✅ Đăng Ký',
+        '❌ Để Sau',
         function() {
             // Confirmed - show final screen
             showFinalScreen();
         },
         function() {
             // Cancelled - do nothing or show alternative
-            showNotification('💭 Bạn có thể suy nghĩ thêm và liên hệ trung tâm khi nào sẵn sàng!', 'info');
+            showNotification('💭 Bạn có thể liên hệ trung tâm bất cứ lúc nào!', 'info');
         }
     );
 }
@@ -1038,6 +1060,8 @@ function confirmPrizeRegistration() {
 function showFinalScreen() {
     document.getElementById('result-container').style.display = 'none';
     document.getElementById('wheel-container').style.display = 'none';
+    document.getElementById('quiz-container').style.display = 'none';
+    document.getElementById('student-form').style.display = 'none';
     document.getElementById('final-container').style.display = 'block';
     
     const container = document.getElementById('final-container');
