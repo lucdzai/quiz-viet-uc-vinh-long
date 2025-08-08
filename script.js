@@ -409,7 +409,23 @@ if (infoForm) {
     } catch (error) {
         console.error('Lỗi lưu thông tin:', error);
         document.getElementById('loading').style.display = 'none';
-        alert('❌ Có lỗi xảy ra khi lưu thông tin. Vui lòng thử lại!');
+        
+        // Enhanced error handling
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            showNotification('⚠️ Không có kết nối internet. Dữ liệu sẽ được lưu tạm thời.', 'warning');
+            // Try localStorage fallback
+            try {
+                const fallbackResult = Database.saveToLocalStorage ? 
+                    Database.saveToLocalStorage(currentUser) : 
+                    { userId: currentUser.timestamp, success: true };
+                userId = fallbackResult.userId;
+                showQuiz();
+            } catch (fallbackError) {
+                alert('❌ Có lỗi nghiêm trọng. Vui lòng thử lại!');
+            }
+        } else {
+            alert('❌ Có lỗi xảy ra khi lưu thông tin. Vui lòng thử lại!');
+        }
     }
     });
 }

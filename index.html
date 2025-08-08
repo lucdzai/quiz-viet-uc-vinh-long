@@ -23,6 +23,7 @@
             <button onclick="resetQuiz()" class="btn-secondary">🔄 Reset Quiz</button>
             <button onclick="viewResults()" class="btn-secondary">📊 Xem Kết Quả</button>
             <button onclick="exportData()" class="btn-secondary">📤 Xuất Excel</button>
+            <button onclick="window.open('admin.html', '_blank')" class="btn-primary">🎛️ Admin Dashboard</button>
         </div>
         <div class="stats" id="stats">
             <h3>📈 Thống kê realtime:</h3>
@@ -58,6 +59,7 @@
     <div id="final-container" style="display: none;"></div>
 
     <script src="config.js?v=20241228"></script>
+    <script src="js/google-sheets.js?v=20241228"></script>
     <script src="script.js?v=20241228"></script>
 </body>
 </html>
