@@ -106,8 +106,10 @@ async function updateStats() {
 }
 
 // Xử lý form thông tin học sinh
-document.getElementById('info-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
+const infoForm = document.getElementById('info-form');
+if (infoForm) {
+    infoForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
     
     // Hiển thị loading
     document.getElementById('loading').style.display = 'block';
@@ -159,7 +161,8 @@ document.getElementById('info-form').addEventListener('submit', async function(e
         document.getElementById('loading').style.display = 'none';
         alert('❌ Có lỗi xảy ra khi lưu thông tin. Vui lòng thử lại!');
     }
-});
+    });
+}
 
 // Lấy IP người dùng (để tracking)
 async function getUserIP() {
