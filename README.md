@@ -1,6 +1,18 @@
-# Quiz Viet Uc Vinh Long - Google Sheets Integration
+# Quiz Viet Uc Vinh Long - Cross-Device Admin Dashboard
 
-A comprehensive quiz application for language center students with **robust Google Sheets integration** and **offline-first design**.
+A comprehensive quiz application for language center students with **robust Google Sheets integration** and **cross-device data collection**.
+
+## 🎯 **NEW: Cross-Device Admin Dashboard Fixed**
+
+**Problem Solved**: Admin dashboard can now see data from ALL student devices, not just the admin's device.
+
+- ✅ **Cross-device data collection**: Admin sees data from any student device
+- ✅ **Real-time updates**: Data appears immediately when students complete quizzes
+- ✅ **Google Sheets first**: Tries Google Sheets first, falls back to localStorage
+- ✅ **Clear status indicators**: Shows whether viewing Google Sheets or localStorage data
+- ✅ **Robust fallback**: Works perfectly even when Google Sheets is offline
+
+![Admin Dashboard](https://github.com/user-attachments/assets/231b3e16-6c84-4e10-b205-ceb3dd8cc791)
 
 ## 🌟 Features
 

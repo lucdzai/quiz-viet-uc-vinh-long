@@ -5,6 +5,7 @@ This guide will help you set up Google Sheets integration for centralized data c
 ## 📊 Overview
 
 The quiz application integrates with Google Sheets through Google Apps Script to:
+- ✅ **Cross-device data collection**: Admin dashboard sees data from ALL student devices
 - ✅ Collect user data from all participants
 - ✅ Store quiz results and scores
 - ✅ Track wheel spin results and prizes  
@@ -12,6 +13,12 @@ The quiz application integrates with Google Sheets through Google Apps Script to
 - ✅ Provide real-time statistics
 - ✅ Enable cross-device data synchronization
 - ✅ Support offline mode with localStorage fallback
+
+### 🚨 **Problem Solved**: Cross-Device Admin Dashboard
+
+**Before**: Admin dashboard could only see data from its own device's localStorage, missing all student data from other devices.
+
+**After**: Admin dashboard fetches data from Google Sheets first, showing real-time data from ALL student devices, with localStorage fallback for reliability.
 
 ## ⚡ Quick Start (5 minutes)
 

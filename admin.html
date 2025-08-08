@@ -137,6 +137,35 @@
             color: #721c24;
         }
         
+        .status-checking {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .data-source-indicator {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+        
+        .source-online {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .source-offline {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .source-unknown {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
         .refresh-btn {
             background: #28a745;
             color: white;
@@ -289,7 +318,9 @@
 
         <!-- Data Section -->
         <section id="data" class="admin-section">
-            <h2>📋 Dữ liệu người dùng</h2>
+            <h2>📋 Dữ liệu người dùng 
+                <span id="data-source-display" class="data-source-indicator source-unknown">Đang tải...</span>
+            </h2>
             
             <div class="filter-controls">
                 <input type="text" id="search-input" placeholder="🔍 Tìm kiếm theo tên hoặc SĐT...">
