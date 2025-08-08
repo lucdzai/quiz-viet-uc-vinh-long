@@ -537,19 +537,21 @@ function showResult() {
         </div>
     `;
     
-    // Hiển thị chi tiết từng câu
-    html += '<div style="text-align: left; margin: 20px 0;">';
-    Object.keys(userAnswers).forEach((key, index) => {
-        const answer = userAnswers[key];
-        html += `
-            <div style="margin: 10px 0; padding: 10px; background: ${answer.isCorrect ? '#d4edda' : '#f8d7da'}; border-radius: 8px;">
-                <strong>Câu ${index + 1}:</strong> ${answer.isCorrect ? '✅' : '❌'}<br>
-                <small>Bạn chọn: ${answer.selectedOption}</small><br>
-                ${!answer.isCorrect ? `<small style="color: #155724;">Đáp án đúng: ${answer.correctOption}</small>` : ''}
-            </div>
-        `;
-    });
-    html += '</div>';
+    // Hiển thị chi tiết từng câu - chỉ khi đạt yêu cầu
+    if (passed) {
+        html += '<div style="text-align: left; margin: 20px 0;">';
+        Object.keys(userAnswers).forEach((key, index) => {
+            const answer = userAnswers[key];
+            html += `
+                <div style="margin: 10px 0; padding: 10px; background: ${answer.isCorrect ? '#d4edda' : '#f8d7da'}; border-radius: 8px;">
+                    <strong>Câu ${index + 1}:</strong> ${answer.isCorrect ? '✅' : '❌'}<br>
+                    <small>Bạn chọn: ${answer.selectedOption}</small><br>
+                    ${!answer.isCorrect ? `<small style="color: #155724;">Đáp án đúng: ${answer.correctOption}</small>` : ''}
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
     
     if (passed) {
         html += `
@@ -649,7 +651,7 @@ function showWheel() {
         
         <div class="wheel-wrapper">
             <div class="wheel-container-inner">
-                <canvas id="wheel-canvas" width="300" height="300"></canvas>
+                <canvas id="wheel-canvas" width="400" height="400"></canvas>
                 <div class="wheel-pointer">▼</div>
             </div>
         </div>
@@ -660,7 +662,7 @@ function showWheel() {
                 <div class="prize-announcement">
                     <h3 id="prize-text"></h3>
                     <p>Chúc mừng bạn đã nhận được phần quà!</p>
-                    <button class="btn-primary" onclick="showFinalScreen()">🎁 Nhận Quà</button>
+                    <button class="btn-primary" onclick="confirmPrizeRegistration()">🎁 Nhận Quà</button>
                 </div>
             </div>
         </div>
@@ -678,7 +680,7 @@ function drawWheel() {
     const ctx = canvas.getContext('2d');
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
-    const radius = 140;
+    const radius = 180;
     
     let currentAngle = 0;
     
@@ -936,6 +938,13 @@ function restartQuiz() {
     userScore = 0;
     stopQuizTimer();
     showQuiz();
+}
+
+// Xác nhận đăng ký khóa học để nhận quà
+function confirmPrizeRegistration() {
+    if (confirm('Xác nhận đăng ký tham gia khóa học để nhận thưởng?\n\nĐây là điều kiện chỉ khi tham dự khóa học mới được nhận thưởng.')) {
+        showFinalScreen();
+    }
 }
 
 // Màn hình cuối - thông tin liên hệ và khóa học

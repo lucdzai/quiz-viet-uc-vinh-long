@@ -564,8 +564,8 @@ input:invalid:not(:focus):not(:placeholder-shown) {
     }
     
     #wheel-canvas {
-        width: 250px;
-        height: 250px;
+        width: 320px;
+        height: 320px;
     }
     
     .timer-display {
