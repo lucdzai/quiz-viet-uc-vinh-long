@@ -1,0 +1,1 @@
+@Copilot please continue with the Google Sheets integration implementation. I'm ready to proceed with the setup.
