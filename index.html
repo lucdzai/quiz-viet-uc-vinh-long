@@ -30,48 +30,6 @@
         </div>
     </div>
 
-    <!-- Form thông tin học sinh -->
-    <div id="student-form" style="display: none;">
-        <div class="logo">
-            <h2>🎓 Trung Tâm Ngoại Ngữ Việt Úc Vĩnh Long</h2>
-            <p>Khám phá năng lực ngoại ngữ của bạn!</p>
-        </div>
-        
-        <form id="info-form">
-            <div class="form-group">
-                <label for="student-name">👤 Họ và Tên *</label>
-                <input type="text" id="student-name" placeholder="VD: Nguyễn Văn A" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="student-phone">📱 Số điện thoại/Zalo *</label>
-                <input type="tel" id="student-phone" placeholder="VD: 0901234567" required pattern="[0-9]{10,11}">
-            </div>
-            
-            <div class="form-group">
-                <label for="student-class">🎯 Chọn lớp học muốn thử sức *</label>
-                <select id="student-class" required>
-                    <option value="">-- Chọn loại lớp học --</option>
-                    <option value="tieu-hoc">🧒 Khối Tiểu học (Starters - Movers - Flyers)</option>
-                    <option value="thcs">👨‍🎓 Khối THCS (Pre-KET - PET)</option>
-                    <option value="thpt">🎓 Luyện thi THPT</option>
-                    <option value="tieng-trung">🇨🇳 Tiếng Trung cơ bản</option>
-                    <option value="tieng-trung-11">🇨🇳 Tiếng Trung cơ bản 1-1</option>
-                    <option value="tieng-anh-giao-tiep">💬 Tiếng Anh giao tiếp</option>
-                    <option value="tieng-anh-giao-tiep-11">💬 Tiếng Anh giao tiếp 1-1</option>
-                    <option value="chung-chi">🏆 Luyện thi chứng chỉ (B1, B2, TOEIC, IELTS)</option>
-                </select>
-            </div>
-            
-            <button type="submit" class="btn-primary">Bắt đầu Quiz 🚀</button>
-        </form>
-        
-        <div class="loading" id="loading" style="display: none;">
-            <div class="spinner"></div>
-            <p>Đang lưu thông tin...</p>
-        </div>
-    </div>
-
     <!-- Container cho các bước tiếp theo -->
     <div id="quiz-container" style="display: none;"></div>
     <div id="result-container" style="display: none;"></div>
