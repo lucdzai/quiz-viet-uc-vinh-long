@@ -118,7 +118,7 @@ const questionsByClass = {
     ],
     'tieng-trung-11': [
         {
-            question: "你好，我叫小明。中的"叫"是什么意思？",
+            question: "你好，我叫小明。中的\"叫\"是什么意思？",
             options: ["là", "tên", "kêu/gọi là", "sống"],
             correct: 2
         },
