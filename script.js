@@ -940,11 +940,98 @@ function restartQuiz() {
     showQuiz();
 }
 
+// Custom Modal Functions
+function showModal(title, message, confirmText = 'Xác nhận', cancelText = 'Hủy', onConfirm = null, onCancel = null) {
+    // Remove existing modal if any
+    const existingModal = document.getElementById('custom-modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Create modal HTML
+    const modalHTML = `
+        <div class="modal-overlay" id="custom-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div class="modal-icon">🎁</div>
+                    <h3>${title}</h3>
+                </div>
+                <div class="modal-body">
+                    <p>${message}</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="modal-btn modal-btn-secondary" onclick="closeModal(false)">${cancelText}</button>
+                    <button class="modal-btn modal-btn-primary" onclick="closeModal(true)">${confirmText}</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Store callbacks
+    window.modalCallbacks = { onConfirm, onCancel };
+    
+    // Show modal with animation
+    setTimeout(() => {
+        document.getElementById('custom-modal').classList.add('show');
+    }, 10);
+    
+    // Close on overlay click
+    document.getElementById('custom-modal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeModal(false);
+        }
+    });
+    
+    // Close on ESC key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeModal(false);
+        }
+    });
+}
+
+function closeModal(confirmed) {
+    const modal = document.getElementById('custom-modal');
+    if (!modal) return;
+    
+    // Hide with animation
+    modal.classList.remove('show');
+    
+    // Remove after animation
+    setTimeout(() => {
+        modal.remove();
+        
+        // Execute callbacks
+        if (window.modalCallbacks) {
+            if (confirmed && window.modalCallbacks.onConfirm) {
+                window.modalCallbacks.onConfirm();
+            } else if (!confirmed && window.modalCallbacks.onCancel) {
+                window.modalCallbacks.onCancel();
+            }
+            window.modalCallbacks = null;
+        }
+    }, 300);
+}
+
 // Xác nhận đăng ký khóa học để nhận quà
 function confirmPrizeRegistration() {
-    if (confirm('Xác nhận đăng ký tham gia khóa học để nhận thưởng?\n\nĐây là điều kiện chỉ khi tham dự khóa học mới được nhận thưởng.')) {
-        showFinalScreen();
-    }
+    showModal(
+        '🎁 Xác Nhận Nhận Quà',
+        'Xác nhận đăng ký tham gia khóa học để nhận thưởng?<br><br><small><strong>Lưu ý:</strong> Đây là điều kiện chỉ khi tham dự khóa học mới được nhận thưởng.</small>',
+        '✅ Xác Nhận',
+        '❌ Hủy',
+        function() {
+            // Confirmed - show final screen
+            showFinalScreen();
+        },
+        function() {
+            // Cancelled - do nothing or show alternative
+            showNotification('💭 Bạn có thể suy nghĩ thêm và liên hệ trung tâm khi nào sẵn sàng!', 'info');
+        }
+    );
 }
 
 // Màn hình cuối - thông tin liên hệ và khóa học
