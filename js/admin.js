@@ -74,25 +74,8 @@ function showSection(sectionName) {
     }
 }
 
-// Check connection status
-async function checkConnection() {
-    const statusElement = document.getElementById('connection-status');
-    statusElement.textContent = '🔄 Đang kiểm tra...';
-    statusElement.className = 'connection-status status-offline';
-    
-    try {
-        const online = await Database.testConnection();
-        updateConnectionDisplay(online);
-        return online;
-    } catch (error) {
-        console.error('Connection check failed:', error);
-        updateConnectionDisplay(false);
-        return false;
-    }
-}
-
-// Update connection display
-function updateConnectionDisplay(isOnline) {
+// Update connection display with enhanced feedback
+function updateConnectionDisplay(isOnline, errorMessage = null) {
     const statusElement = document.getElementById('connection-status');
     
     if (isOnline) {
@@ -100,15 +83,28 @@ function updateConnectionDisplay(isOnline) {
         statusElement.className = 'connection-status status-online';
         isOnline = true;
         
-        // Show success notification
-        showNotification('🟢 Kết nối Google Sheets thành công!', 'success');
+        // Show success notification only once
+        if (!window.connectionNotificationShown || window.connectionNotificationShown !== 'online') {
+            showNotification('🟢 Kết nối Google Sheets thành công!', 'success');
+            window.connectionNotificationShown = 'online';
+        }
     } else {
-        statusElement.textContent = '❌ Offline - Dùng localStorage';
+        const offlineText = errorMessage 
+            ? `❌ Offline - ${errorMessage.substring(0, 30)}...`
+            : '❌ Offline - Dùng localStorage';
+            
+        statusElement.textContent = offlineText;
         statusElement.className = 'connection-status status-offline';
         isOnline = false;
         
-        // Show warning notification
-        showNotification('🟡 Chế độ offline - Dữ liệu được lưu locally', 'warning');
+        // Show warning notification only once
+        if (!window.connectionNotificationShown || window.connectionNotificationShown !== 'offline') {
+            const warningMsg = errorMessage 
+                ? `🟡 Lỗi kết nối: ${errorMessage}`
+                : '🟡 Chế độ offline - Dữ liệu được lưu locally';
+            showNotification(warningMsg, 'warning');
+            window.connectionNotificationShown = 'offline';
+        }
     }
     
     // Update data source indicator
@@ -116,29 +112,100 @@ function updateConnectionDisplay(isOnline) {
     if (dataSourceElement) {
         dataSourceElement.textContent = isOnline ? 'Google Sheets + localStorage' : 'localStorage only';
     }
+    
+    // Trigger connection status event for other components
+    window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { 
+        detail: { 
+            online: isOnline, 
+            error: errorMessage 
+        }
+    }));
 }
 
 // Refresh dashboard data
 async function refreshDashboard() {
     console.log('🔄 Refreshing dashboard...');
-    await checkConnection();
-    await loadStats();
+    const refreshButton = document.querySelector('.refresh-btn');
     
-    if (currentSection === 'dashboard') {
-        updateStatsDisplay();
-        updateRecentActivity();
-        updateStatsChart();
+    // Disable refresh button during refresh
+    if (refreshButton) {
+        refreshButton.disabled = true;
+        refreshButton.textContent = '🔄 Đang tải...';
+    }
+    
+    try {
+        // Check connection status first
+        await checkConnection();
+        
+        // Load fresh data from Google Sheets
+        await loadStats();
+        await loadUserData(); // This will update userData with fresh data from Google Sheets
+        
+        if (currentSection === 'dashboard') {
+            updateStatsDisplay();
+            updateRecentActivity();
+            updateStatsChart();
+        }
+        
+        showNotification('✅ Dữ liệu đã được cập nhật', 'success');
+        
+    } catch (error) {
+        console.error('Error refreshing dashboard:', error);
+        showNotification('⚠️ Có lỗi khi cập nhật dữ liệu: ' + error.message, 'error');
+    } finally {
+        // Re-enable refresh button
+        if (refreshButton) {
+            refreshButton.disabled = false;
+            refreshButton.textContent = '🔄 Kiểm tra';
+        }
     }
 }
 
 // Load statistics
 async function loadStats() {
     try {
+        // Try Google Sheets first
+        if (typeof GoogleSheets !== 'undefined') {
+            console.log('📊 Loading stats from Google Sheets...');
+            const result = await GoogleSheets.getStats();
+            
+            if (result.success) {
+                stats = result;
+                console.log('✅ Stats loaded from Google Sheets:', stats);
+                return;
+            }
+        }
+        
+        // Fallback to Database.getStats (which includes localStorage fallback)
+        console.log('📊 Loading stats from fallback...');
         stats = await Database.getStats();
-        console.log('📊 Stats loaded:', stats);
+        console.log('📊 Stats loaded from fallback:', stats);
+        
     } catch (error) {
         console.error('❌ Error loading stats:', error);
-        showNotification('Lỗi khi tải thống kê', 'error');
+        showNotification('Lỗi khi tải thống kê: ' + error.message, 'error');
+        
+        // Emergency fallback - calculate from current userData
+        if (userData && userData.length > 0) {
+            stats = {
+                success: true,
+                totalParticipants: userData.length,
+                completedQuiz: userData.filter(u => u.score !== undefined).length,
+                passedQuiz: userData.filter(u => u.score >= CONFIG.QUIZ_SETTINGS.PASS_SCORE).length,
+                registeredUsers: userData.filter(u => u.choice === 'register').length,
+                declinedUsers: userData.filter(u => u.choice === 'decline').length,
+                source: 'calculated from current data'
+            };
+        } else {
+            stats = {
+                success: false,
+                totalParticipants: 0,
+                completedQuiz: 0,
+                passedQuiz: 0,
+                registeredUsers: 0,
+                declinedUsers: 0
+            };
+        }
     }
 }
 
@@ -213,6 +280,22 @@ function updateRecentActivity() {
 
 // Update stats chart
 function updateStatsChart() {
+    // Check if Chart.js is available
+    if (typeof Chart === 'undefined') {
+        console.warn('Chart.js not available, skipping chart update');
+        const chartCanvas = document.getElementById('statsChart');
+        if (chartCanvas) {
+            const ctx = chartCanvas.getContext('2d');
+            ctx.fillStyle = '#f8f9fa';
+            ctx.fillRect(0, 0, chartCanvas.width, chartCanvas.height);
+            ctx.fillStyle = '#6c757d';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Biểu đồ không khả dụng', chartCanvas.width/2, chartCanvas.height/2);
+        }
+        return;
+    }
+    
     const ctx = document.getElementById('statsChart').getContext('2d');
     
     if (charts.stats) {
@@ -266,15 +349,51 @@ async function loadUserData() {
     showLoading('Đang tải dữ liệu người dùng...');
     
     try {
-        // Try to get from Google Sheets first, fallback to localStorage
+        // Try to get from Google Sheets first
+        if (typeof GoogleSheets !== 'undefined') {
+            console.log('🔄 Attempting to load data from Google Sheets...');
+            const result = await GoogleSheets.getAllUserData();
+            
+            if (result.success && result.data) {
+                userData = result.data;
+                console.log(`✅ Loaded ${userData.length} records from ${result.source}`);
+                
+                // Show data source in UI
+                updateDataSourceIndicator(result.source);
+                
+                displayUserData(userData);
+                hideLoading();
+                return;
+            }
+        }
+        
+        // Fallback to localStorage
+        console.log('📱 Falling back to localStorage...');
         userData = JSON.parse(localStorage.getItem('quizUsers') || '[]');
+        updateDataSourceIndicator('localStorage');
         
         displayUserData(userData);
         hideLoading();
+        
+        if (userData.length === 0) {
+            showNotification('ℹ️ Chưa có dữ liệu nào. Dữ liệu từ học sinh sẽ hiển thị khi họ làm quiz.', 'info');
+        }
+        
     } catch (error) {
         console.error('Error loading user data:', error);
         hideLoading();
-        showNotification('Lỗi khi tải dữ liệu người dùng', 'error');
+        showNotification('Lỗi khi tải dữ liệu người dùng: ' + error.message, 'error');
+        
+        // Emergency fallback to localStorage
+        try {
+            userData = JSON.parse(localStorage.getItem('quizUsers') || '[]');
+            updateDataSourceIndicator('localStorage (emergency fallback)');
+            displayUserData(userData);
+        } catch (fallbackError) {
+            console.error('Even localStorage fallback failed:', fallbackError);
+            userData = [];
+            displayUserData(userData);
+        }
     }
 }
 
@@ -605,6 +724,81 @@ function syncData() {
     }
 }
 
+// Update data source indicator
+function updateDataSourceIndicator(source) {
+    const indicators = [
+        document.getElementById('data-source'),
+        document.getElementById('data-source-display')
+    ];
+    
+    let displayText = source;
+    let className = '';
+    
+    switch(source) {
+        case 'google_sheets':
+            displayText = '🟢 Google Sheets (Real-time)';
+            className = 'source-online';
+            break;
+        case 'localStorage':
+            displayText = '🟡 localStorage (Local only)';
+            className = 'source-offline';
+            break;
+        default:
+            displayText = source;
+            className = 'source-unknown';
+    }
+    
+    indicators.forEach(element => {
+        if (element) {
+            element.textContent = displayText;
+            element.className = `data-source-indicator ${className}`;
+        }
+    });
+}
+
+// Enhanced connection check with better feedback
+async function checkConnection() {
+    const statusElement = document.getElementById('connection-status');
+    const refreshBtn = document.querySelector('.refresh-btn');
+    
+    // Show checking state
+    statusElement.textContent = '🔄 Đang kiểm tra kết nối...';
+    statusElement.className = 'connection-status status-checking';
+    
+    if (refreshBtn) {
+        refreshBtn.disabled = true;
+    }
+    
+    try {
+        let online = false;
+        
+        // Use GoogleSheets if available
+        if (typeof GoogleSheets !== 'undefined') {
+            const healthCheck = await GoogleSheets.healthCheck();
+            online = healthCheck.connected;
+            
+            if (online) {
+                console.log(`✅ Google Sheets health check: ${healthCheck.responseTime}ms`);
+            }
+        } else {
+            // Fallback to Database.testConnection
+            online = await Database.testConnection();
+        }
+        
+        updateConnectionDisplay(online);
+        return online;
+        
+    } catch (error) {
+        console.error('Connection check failed:', error);
+        updateConnectionDisplay(false, error.message);
+        return false;
+    } finally {
+        if (refreshBtn) {
+            refreshBtn.disabled = false;
+        }
+    }
+}
+
 function backupData() {
     const backup = {
         timestamp: new Date().toISOString(),
@@ -627,25 +821,37 @@ function hideLoading() {
 }
 
 function showNotification(message, type = 'info') {
+    // Prevent duplicate notifications
+    const existingNotifications = document.querySelectorAll('.notification');
+    if (existingNotifications.length > 3) {
+        existingNotifications[0].remove(); // Remove oldest notification
+    }
+    
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
     notification.textContent = message;
     notification.style.cssText = `
         position: fixed;
-        top: 20px;
+        top: ${20 + (existingNotifications.length * 70)}px;
         right: 20px;
-        background: ${type === 'success' ? '#27ae60' : type === 'error' ? '#e74c3c' : '#3498db'};
+        background: ${type === 'success' ? '#27ae60' : type === 'error' ? '#e74c3c' : type === 'warning' ? '#f39c12' : '#3498db'};
         color: white;
         padding: 15px 20px;
         border-radius: 10px;
         z-index: 10000;
         animation: slideInRight 0.3s ease;
+        max-width: 300px;
+        font-size: 14px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     `;
     
     document.body.appendChild(notification);
     
     setTimeout(() => {
-        notification.remove();
+        if (notification.parentNode) {
+            notification.style.animation = 'slideInRight 0.3s ease reverse';
+            setTimeout(() => notification.remove(), 300);
+        }
     }, 3000);
 }
 
