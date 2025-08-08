@@ -266,21 +266,73 @@ function generateQR() {
     const url = CONFIG.WEBSITE_URL + "/student.html";
     const qrContainer = document.getElementById('qr-code');
     
-    QRCode.toCanvas(qrContainer, url, {
-        width: 200,
-        height: 200,
-        colorDark: "#2c3e50",
-        colorLight: "#ffffff",
-        margin: 2,
-        errorCorrectionLevel: 'M'
-    }, function (error) {
-        if (error) {
-            console.error('QR Code generation failed:', error);
-            qrContainer.innerHTML = '<p style="color: #e74c3c;">❌ Không thể tạo mã QR</p>';
-        } else {
-            console.log('✅ QR Code generated successfully!');
-        }
-    });
+    // Kiểm tra xem QRCode library có khả dụng không
+    if (typeof QRCode !== 'undefined') {
+        QRCode.toCanvas(qrContainer, url, {
+            width: 200,
+            height: 200,
+            colorDark: "#2c3e50",
+            colorLight: "#ffffff",
+            margin: 2,
+            errorCorrectionLevel: 'M'
+        }, function (error) {
+            if (error) {
+                console.error('QR Code generation failed:', error);
+                showQRFallback(qrContainer, url);
+            } else {
+                console.log('✅ QR Code generated successfully!');
+            }
+        });
+    } else {
+        console.warn('QRCode library not available, showing fallback');
+        showQRFallback(qrContainer, url);
+    }
+}
+
+// Hiển thị fallback khi không thể tạo QR code
+function showQRFallback(container, url) {
+    container.innerHTML = `
+        <div class="qr-fallback">
+            <div style="font-size: 48px; margin-bottom: 10px;">📱</div>
+            <strong>Không thể tạo mã QR</strong>
+            <div class="fallback-info">
+                <p>Học sinh có thể truy cập trực tiếp:</p>
+                <div style="background: white; padding: 10px; border-radius: 8px; margin: 10px 0; word-break: break-all; font-family: monospace; font-size: 12px;">
+                    ${url}
+                </div>
+                <button onclick="copyToClipboard('${url}')" class="btn-secondary" style="font-size: 12px; padding: 8px 15px;">
+                    📋 Copy Link
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+// Copy URL to clipboard
+function copyToClipboard(text) {
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(() => {
+            showNotification('📋 Đã copy link!', 'success');
+        }).catch(() => {
+            fallbackCopy(text);
+        });
+    } else {
+        fallbackCopy(text);
+    }
+}
+
+function fallbackCopy(text) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+        document.execCommand('copy');
+        showNotification('📋 Đã copy link!', 'success');
+    } catch (err) {
+        showNotification('❌ Không thể copy link', 'error');
+    }
+    document.body.removeChild(textArea);
 }
 
 // Cập nhật thống kê realtime
@@ -290,6 +342,14 @@ async function updateStats() {
         document.getElementById('total-participants').textContent = stats.totalParticipants || 0;
         document.getElementById('completed-quiz').textContent = stats.completedQuiz || 0;
         document.getElementById('passed-quiz').textContent = stats.passedQuiz || 0;
+        
+        // Thêm thống kê quyết định đăng ký nếu có elements
+        if (document.getElementById('registered-users')) {
+            document.getElementById('registered-users').textContent = stats.registeredUsers || 0;
+        }
+        if (document.getElementById('declined-users')) {
+            document.getElementById('declined-users').textContent = stats.declinedUsers || 0;
+        }
     } catch (error) {
         console.error('Lỗi cập nhật thống kê:', error);
     }
@@ -576,7 +636,7 @@ function showResult() {
                 <small>Nhưng đừng lo! Chúng tôi vẫn có những ưu đãi dành cho bạn.</small>
             </div>
             <button class="btn-secondary" onclick="restartQuiz()">🔄 Làm lại Quiz</button>
-            <button class="btn-primary" onclick="showFinalScreen()">🎓 Tìm hiểu khóa học</button>
+            <button class="btn-primary" onclick="showCourseRegistration()">🎓 Tìm hiểu khóa học</button>
         `;
     }
     
@@ -899,7 +959,50 @@ function resetQuiz() {
 async function viewResults() {
     try {
         const stats = await Database.getStats();
-        alert(`📊 Thống kê Quiz:\n\n👥 Tổng người tham gia: ${stats.totalParticipants}\n✅ Hoàn thành quiz: ${stats.completedQuiz}\n🎯 Đạt vòng quay: ${stats.passedQuiz}\n🏆 Tỷ lệ đạt: ${stats.completedQuiz > 0 ? Math.round((stats.passedQuiz / stats.completedQuiz) * 100) : 0}%`);
+        
+        // Tạo thông tin chi tiết từ localStorage để hiển thị
+        const users = JSON.parse(localStorage.getItem('quizUsers') || '[]');
+        let detailText = '';
+        
+        if (users.length > 0) {
+            detailText += '\n\n📋 CHI TIẾT NGƯỜI DÙNG:\n';
+            detailText += '━━━━━━━━━━━━━━━━━━━━━━━━━\n';
+            
+            users.forEach((user, index) => {
+                const score = user.score !== undefined ? `${user.score}/5` : 'Chưa làm';
+                const wheelStatus = user.score >= 3 ? '🎯 Đạt vòng quay' : '❌ Chưa đạt';
+                const prize = user.prize ? 
+                    (typeof user.prize === 'string' ? user.prize : user.prize.name || 'N/A') : 'Không có';
+                
+                let decision = 'Chưa quyết định';
+                if (user.choice === 'register' || user.registrationData?.registrationDecision === 'register') {
+                    decision = '✅ Đăng ký';
+                } else if (user.choice === 'decline' || user.registrationData?.registrationDecision === 'decline') {
+                    decision = '❌ Từ chối';
+                } else if (user.choice === 'completed') {
+                    decision = '✅ Hoàn thành (cũ)';
+                }
+                
+                detailText += `${index + 1}. ${user.name || 'N/A'}\n`;
+                detailText += `   📱 ${user.phone || 'N/A'}\n`;
+                detailText += `   📚 ${getClassDisplayName(user.classType) || 'N/A'}\n`;
+                detailText += `   📊 Điểm: ${score} | ${wheelStatus}\n`;
+                detailText += `   🎁 Quà: ${prize}\n`;
+                detailText += `   📝 Quyết định: ${decision}\n`;
+                detailText += `   ⏰ ${user.timestamp ? new Date(user.timestamp).toLocaleString('vi-VN') : 'N/A'}\n\n`;
+            });
+        }
+        
+        alert(`📊 THỐNG KÊ CHI TIẾT:\n\n` +
+              `👥 Tổng người tham gia: ${stats.totalParticipants}\n` +
+              `✅ Hoàn thành quiz: ${stats.completedQuiz}\n` +
+              `🎯 Đạt vòng quay: ${stats.passedQuiz}\n` +
+              `📈 Tỷ lệ đạt: ${stats.completedQuiz > 0 ? Math.round((stats.passedQuiz / stats.completedQuiz) * 100) : 0}%\n\n` +
+              `📝 QUYẾT ĐỊNH ĐĂNG KÝ:\n` +
+              `✅ Đã đăng ký: ${stats.registeredUsers || 0}\n` +
+              `❌ Từ chối: ${stats.declinedUsers || 0}\n` +
+              `💼 Tỷ lệ chuyển đổi: ${(stats.registeredUsers || 0) > 0 ? Math.round(((stats.registeredUsers || 0) / stats.totalParticipants) * 100) : 0}%` +
+              detailText);
     } catch (error) {
         alert('❌ Không thể lấy dữ liệu thống kê!');
     }
@@ -915,7 +1018,7 @@ function exportData() {
     
     // Header với BOM cho UTF-8
     const BOM = '\uFEFF';
-    let csv = BOM + 'Họ tên,Số điện thoại,Lớp học,Điểm quiz,Thời gian làm bài,Trạng thái,Phần thưởng\n';
+    let csv = BOM + 'Họ tên,Số điện thoại,Lớp học,Điểm quiz,Thời gian làm bài,Trạng thái vòng quay,Phần thưởng,Quyết định cuối,Thời gian quyết định\n';
     
     users.forEach(user => {
         const name = (user.name || '').replace(/"/g, '""');
@@ -923,12 +1026,26 @@ function exportData() {
         const classType = getClassDisplayName(user.classType || '').replace(/"/g, '""');
         const score = user.score !== undefined ? `${user.score}/5` : 'Chưa làm';
         const timestamp = user.timestamp ? new Date(user.timestamp).toLocaleString('vi-VN') : '';
-        const status = user.score >= 3 ? 'Đạt vòng quay' : 'Chưa đạt';
+        const wheelStatus = user.score >= 3 ? 'Đạt vòng quay' : 'Chưa đạt';
         const prize = user.prize ? 
             (typeof user.prize === 'string' ? user.prize : 
              (user.prize.name ? user.prize.name : 'Không xác định')) : 'Không có';
         
-        csv += `"${name}","${phone}","${classType}","${score}","${timestamp}","${status}","${prize}"\n`;
+        // Thêm thông tin quyết định cuối
+        let finalDecision = 'Chưa quyết định';
+        if (user.choice === 'register' || user.registrationData?.registrationDecision === 'register') {
+            finalDecision = '✅ Đăng ký khóa học';
+        } else if (user.choice === 'decline' || user.registrationData?.registrationDecision === 'decline') {
+            finalDecision = '❌ Từ chối đăng ký';
+        } else if (user.choice === 'completed') {
+            finalDecision = '✅ Hoàn thành (cũ)'; // For legacy data
+        }
+        
+        const decisionTime = user.finalChoiceTimestamp || 
+                            user.registrationData?.completedAt || 
+                            (user.choice ? new Date().toLocaleString('vi-VN') : '');
+        
+        csv += `"${name}","${phone}","${classType}","${score}","${timestamp}","${wheelStatus}","${prize}","${finalDecision}","${decisionTime}"\n`;
     });
     
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -960,6 +1077,24 @@ function restartQuiz() {
     userScore = 0;
     stopQuizTimer();
     showQuiz();
+}
+
+// Hiển thị modal đăng ký khóa học cho users không đạt vòng quay
+function showCourseRegistration() {
+    showModal(
+        '🎓 Đăng Ký Khóa Học',
+        'Mặc dù bạn chưa đạt điều kiện vào vòng quay, chúng tôi vẫn có nhiều ưu đãi đặc biệt cho bạn! Bạn có muốn đăng ký tham gia khóa học không?',
+        '✅ Đăng Ký Ngay',
+        '❌ Để Sau',
+        function() {
+            // User chose to register
+            showFinalScreen('register');
+        },
+        function() {
+            // User chose to decline
+            showFinalScreen('decline');
+        }
+    );
 }
 
 // Custom Modal Functions
@@ -1046,18 +1181,18 @@ function confirmPrizeRegistration() {
         '✅ Đăng Ký',
         '❌ Để Sau',
         function() {
-            // Confirmed - show final screen
-            showFinalScreen();
+            // Confirmed - user chose to register
+            showFinalScreen('register');
         },
         function() {
-            // Cancelled - do nothing or show alternative
-            showNotification('💭 Bạn có thể liên hệ trung tâm bất cứ lúc nào!', 'info');
+            // Declined - user chose to decline
+            showFinalScreen('decline');
         }
     );
 }
 
 // Màn hình cuối - thông tin liên hệ và khóa học
-function showFinalScreen() {
+function showFinalScreen(userChoice = 'completed') {
     document.getElementById('result-container').style.display = 'none';
     document.getElementById('wheel-container').style.display = 'none';
     document.getElementById('quiz-container').style.display = 'none';
@@ -1076,13 +1211,35 @@ function showFinalScreen() {
         </div>
     `;
     
+    // Show different content based on user's choice
+    if (userChoice === 'register') {
+        html += `
+            <div class="registration-success">
+                <h3>🎉 Cảm ơn bạn đã đăng ký!</h3>
+                <p style="color: #27ae60; font-weight: 600;">✅ Bạn đã chọn <strong>ĐĂNG KÝ</strong> tham gia khóa học</p>
+                <p>Chúng tôi sẽ liên hệ với bạn trong thời gian sớm nhất để tư vấn chi tiết.</p>
+            </div>
+        `;
+    } else if (userChoice === 'decline') {
+        html += `
+            <div class="registration-decline">
+                <h3>💭 Cảm ơn bạn đã tham gia!</h3>
+                <p style="color: #f39c12; font-weight: 600;">ℹ️ Bạn đã chọn <strong>ĐỂ SAU</strong> việc đăng ký</p>
+                <p>Không sao cả! Bạn có thể liên hệ với chúng tôi bất cứ lúc nào khi sẵn sàng.</p>
+            </div>
+        `;
+    }
+    
     if (hasPrize) {
         html += `
             <div class="prize-info">
                 <h3>🎉 Phần quà của bạn:</h3>
                 <div class="prize-display">${currentUser.prize}</div>
                 <p><strong>Cách nhận quà:</strong><br>
-                Vui lòng liên hệ trung tâm trong vòng 7 ngày để nhận quà với thông tin bạn đã đăng ký.</p>
+                ${userChoice === 'register' ? 
+                    'Vui lòng liên hệ trung tâm trong vòng 7 ngày để nhận quà và được tư vấn khóa học.' :
+                    'Vui lòng liên hệ trung tâm trong vòng 7 ngày để nhận quà với thông tin bạn đã đăng ký.'
+                }</p>
             </div>
         `;
     }
@@ -1126,12 +1283,17 @@ function showFinalScreen() {
     
     container.innerHTML = html;
     
-    // Lưu lựa chọn cuối vào database
-    Database.updateFinalChoice(userId, 'completed', {
+    // Lưu lựa chọn cuối vào database với choice thực tế
+    Database.updateFinalChoice(userId, userChoice, {
         completedAt: new Date().toISOString(),
         finalScore: currentUser.score,
-        finalPrize: currentUser.prize || 'none'
+        finalPrize: currentUser.prize || 'none',
+        registrationDecision: userChoice // Thêm field mới để tracking quyết định
     }).catch(error => {
         console.error('Lỗi lưu lựa chọn cuối:', error);
     });
+    
+    // Cập nhật currentUser với choice
+    currentUser.finalChoice = userChoice;
+    currentUser.finalChoiceTimestamp = new Date().toISOString();
 }

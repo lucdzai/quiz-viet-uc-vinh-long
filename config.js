@@ -222,11 +222,30 @@ const Database = {
     getLocalStats() {
         try {
             const users = JSON.parse(localStorage.getItem('quizUsers') || '[]');
+            
+            // Tính toán các thống kê chi tiết
+            const totalParticipants = users.length;
+            const completedQuiz = users.filter(u => u.score !== undefined).length;
+            const passedQuiz = users.filter(u => u.score >= CONFIG.QUIZ_SETTINGS.PASS_SCORE).length;
+            
+            // Thống kê quyết định đăng ký
+            const registeredUsers = users.filter(u => 
+                u.choice === 'register' || 
+                u.registrationData?.registrationDecision === 'register'
+            ).length;
+            
+            const declinedUsers = users.filter(u => 
+                u.choice === 'decline' || 
+                u.registrationData?.registrationDecision === 'decline'
+            ).length;
+            
             return {
                 success: true,
-                totalParticipants: users.length,
-                completedQuiz: users.filter(u => u.score !== undefined).length,
-                passedQuiz: users.filter(u => u.score >= CONFIG.QUIZ_SETTINGS.PASS_SCORE).length,
+                totalParticipants: totalParticipants,
+                completedQuiz: completedQuiz,
+                passedQuiz: passedQuiz,
+                registeredUsers: registeredUsers,
+                declinedUsers: declinedUsers,
                 lastUpdated: new Date().toISOString(),
                 source: 'localStorage'
             };
@@ -236,7 +255,9 @@ const Database = {
                 success: false,
                 totalParticipants: 0,
                 completedQuiz: 0,
-                passedQuiz: 0
+                passedQuiz: 0,
+                registeredUsers: 0,
+                declinedUsers: 0
             };
         }
     },
