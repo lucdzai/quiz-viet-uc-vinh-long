@@ -58,6 +58,19 @@ body {
     margin-bottom: 20px;
 }
 
+.center-logo {
+    width: 80px;
+    height: auto;
+    margin: 0 auto 15px;
+    display: block;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.1));
+}
+
+.logo-fallback {
+    font-size: 48px;
+    margin-bottom: 15px;
+}
+
 #qr-code {
     margin: 20px 0;
     display: flex;
@@ -354,4 +367,236 @@ input:invalid:not(:focus):not(:placeholder-shown) {
 .tooltip:hover .tooltiptext {
     visibility: visible;
     opacity: 1;
+}
+
+/* Timer Styles */
+.timer-container {
+    text-align: center;
+    margin: 20px 0;
+}
+
+.timer-display {
+    background: linear-gradient(45deg, #667eea, #764ba2);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 15px;
+    font-size: 18px;
+    font-weight: bold;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.timer-display #timer-text {
+    font-family: 'Courier New', monospace;
+    font-size: 24px;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+/* Wheel Styles */
+.wheel-wrapper {
+    display: flex;
+    justify-content: center;
+    margin: 30px 0;
+}
+
+.wheel-container-inner {
+    position: relative;
+    display: inline-block;
+}
+
+#wheel-canvas {
+    border: 5px solid #2c3e50;
+    border-radius: 50%;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+    transition: transform 0.1s ease;
+}
+
+.wheel-pointer {
+    position: absolute;
+    top: -15px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 30px;
+    color: #e74c3c;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    z-index: 10;
+}
+
+.wheel-controls {
+    text-align: center;
+    margin: 20px 0;
+}
+
+.prize-announcement {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    padding: 25px;
+    border-radius: 15px;
+    margin: 20px 0;
+    border: 3px solid #f1c40f;
+    animation: prizeGlow 2s ease-in-out infinite alternate;
+}
+
+.prize-announcement h3 {
+    color: #2c3e50;
+    font-size: 24px;
+    margin-bottom: 10px;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+@keyframes prizeGlow {
+    from { box-shadow: 0 0 10px rgba(241, 196, 15, 0.5); }
+    to { box-shadow: 0 0 20px rgba(241, 196, 15, 0.8); }
+}
+
+/* Final Screen Styles */
+.prize-info {
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    padding: 20px;
+    border-radius: 15px;
+    margin: 20px 0;
+    border-left: 5px solid #f1c40f;
+}
+
+.prize-display {
+    font-size: 20px;
+    font-weight: bold;
+    color: #2c3e50;
+    background: #fff;
+    padding: 15px;
+    border-radius: 10px;
+    margin: 10px 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.contact-info, .course-info {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 15px;
+    margin: 20px 0;
+    text-align: left;
+}
+
+.contact-info h3, .course-info h3 {
+    color: #2c3e50;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.contact-details p {
+    margin: 10px 0;
+    line-height: 1.6;
+}
+
+.contact-details a {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.contact-details a:hover {
+    text-decoration: underline;
+}
+
+.course-list {
+    display: grid;
+    gap: 10px;
+}
+
+.course-item {
+    background: white;
+    padding: 12px;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    transition: transform 0.2s ease;
+}
+
+.course-item:hover {
+    transform: translateX(5px);
+}
+
+.final-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin: 20px 0;
+}
+
+.final-actions .btn-primary,
+.final-actions .btn-secondary {
+    flex: 1;
+    min-width: 120px;
+    max-width: 200px;
+}
+
+.thank-you {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    padding: 20px;
+    border-radius: 15px;
+    margin: 20px 0;
+    text-align: center;
+}
+
+/* Confetti Animation */
+@keyframes confettiFall {
+    0% {
+        transform: translateY(-100vh) rotate(0deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(100vh) rotate(720deg);
+        opacity: 0;
+    }
+}
+
+/* Pulse Animation */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* Enhanced Mobile Responsiveness */
+@media (max-width: 600px) {
+    .wheel-container-inner {
+        transform: scale(0.8);
+    }
+    
+    #wheel-canvas {
+        width: 250px;
+        height: 250px;
+    }
+    
+    .timer-display {
+        padding: 10px 15px;
+        font-size: 16px;
+    }
+    
+    .timer-display #timer-text {
+        font-size: 20px;
+    }
+    
+    .final-actions {
+        flex-direction: column;
+    }
+    
+    .final-actions .btn-primary,
+    .final-actions .btn-secondary {
+        max-width: 100%;
+        margin: 5px 0;
+    }
+    
+    .course-list {
+        gap: 8px;
+    }
+    
+    .course-item {
+        padding: 10px;
+        font-size: 14px;
+    }
+    
+    .contact-details {
+        font-size: 14px;
+    }
 }
