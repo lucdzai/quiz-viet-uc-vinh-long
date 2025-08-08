@@ -38,24 +38,42 @@ const questionsByClass = {
 
 // Khởi tạo ứng dụng
 window.onload = function() {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('student') === 'true') {
-        // Hiển thị form học sinh
-        document.getElementById('admin-panel').style.display = 'none';
-        document.getElementById('student-form').style.display = 'block';
+    // Kiểm tra xem đang ở trang nào dựa trên tên file
+    const currentPage = window.location.pathname.split('/').pop();
+    
+    if (currentPage === 'student.html') {
+        // Trang học sinh - hiển thị form
+        const adminPanel = document.getElementById('admin-panel');
+        if (adminPanel) {
+            adminPanel.style.display = 'none';
+        }
+        const studentForm = document.getElementById('student-form');
+        if (studentForm) {
+            studentForm.style.display = 'block';
+        }
     } else {
-        // Hiển thị admin panel và tạo QR
-        generateQR();
-        updateStats();
-        // Cập nhật stats mỗi 30 giây
-        setInterval(updateStats, 30000);
+        // Trang admin (index.html) - hiển thị admin panel và tạo QR
+        const adminPanel = document.getElementById('admin-panel');
+        const studentForm = document.getElementById('student-form');
+        
+        if (adminPanel) {
+            adminPanel.style.display = 'block';
+            generateQR();
+            updateStats();
+            // Cập nhật stats mỗi 30 giây
+            setInterval(updateStats, 30000);
+        }
+        
+        if (studentForm) {
+            studentForm.style.display = 'none';
+        }
     }
 };
 
 // Tạo QR Code với URL thực tế
 function generateQR() {
-    // Lấy URL hiện tại và thêm parameter
-    const url = CONFIG.WEBSITE_URL + "?student=true";
+    // Tạo URL trỏ đến trang student.html
+    const url = CONFIG.WEBSITE_URL + "/student.html";
     const qrContainer = document.getElementById('qr-code');
     
     QRCode.toCanvas(qrContainer, url, {
@@ -88,8 +106,10 @@ async function updateStats() {
 }
 
 // Xử lý form thông tin học sinh
-document.getElementById('info-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
+const infoForm = document.getElementById('info-form');
+if (infoForm) {
+    infoForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
     
     // Hiển thị loading
     document.getElementById('loading').style.display = 'block';
@@ -141,7 +161,8 @@ document.getElementById('info-form').addEventListener('submit', async function(e
         document.getElementById('loading').style.display = 'none';
         alert('❌ Có lỗi xảy ra khi lưu thông tin. Vui lòng thử lại!');
     }
-});
+    });
+}
 
 // Lấy IP người dùng (để tracking)
 async function getUserIP() {
