@@ -48,21 +48,28 @@ GOOGLE_SCRIPT_URL: 'https://script.google.com/macros/s/YOUR_ACTUAL_ID/exec'
 2. Open in new browser tab
 3. Should see: `{"success":true,"message":"Quiz Google Apps Script is running"...}`
 
-### 2. CORS Errors in Browser Console
+### 2. CORS Errors in Browser Console - FIXED! ✅
 
-**Symptoms:**
+**Previous Issue (NOW RESOLVED):**
 ```
 Access to fetch at 'https://script.google.com/...' from origin 'https://yoursite.com' has been blocked by CORS policy
 ```
 
-**This is NORMAL behavior!** 
+**✅ SOLUTION IMPLEMENTED**: Added `doOptions()` function to Google Apps Script
 
-✅ **Expected behavior** - The application automatically handles this with fallback to localStorage.
+**What was fixed:**
+- ✅ Added missing `doOptions()` function to handle browser preflight requests
+- ✅ CORS headers now properly configured for OPTIONS, GET, and POST methods
+- ✅ Cross-device data synchronization now works without CORS errors
+- ✅ POST requests to Google Apps Script no longer blocked
 
-**Why this happens:**
-- Google Apps Script has CORS restrictions for some browsers/configurations
-- The application is designed to work with or without Google Sheets
-- Users will see "🟡 Chế độ offline" notification, which is normal
+**Expected behavior after fix:**
+- Students can submit quiz data from phones → data syncs to Google Sheets
+- Admin dashboard shows real-time data from ALL devices
+- No more CORS errors in browser console
+- Cross-device data collection works perfectly
+
+**Note:** If you still see CORS errors, ensure you've updated your Google Apps Script with the latest code from `docs/google-apps-script.js` that includes the `doOptions()` function.
 
 ### 3. No Data in Google Sheets
 

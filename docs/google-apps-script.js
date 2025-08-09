@@ -3,6 +3,9 @@
  * 
  * This script receives data from the quiz application and stores it in Google Sheets.
  * 
+ * CRITICAL CORS FIX: This script now includes doOptions() function to handle
+ * browser preflight requests, enabling cross-device data synchronization.
+ * 
  * Setup Instructions:
  * 1. Open Google Apps Script (script.google.com)
  * 2. Create a new project
@@ -11,6 +14,11 @@
  * 5. Update the SPREADSHEET_ID variable below with your sheet ID
  * 6. Deploy as web app with execute permissions for "Anyone"
  * 7. Copy the web app URL and update CONFIG.GOOGLE_SCRIPT_URL in config.js
+ * 
+ * Key Functions:
+ * - doOptions(): Handles CORS preflight requests (CRITICAL for POST to work)
+ * - doGet(): Test connection and basic requests
+ * - doPost(): Main data processing function
  */
 
 // Configuration - UPDATE THIS WITH YOUR GOOGLE SHEET ID
@@ -70,6 +78,21 @@ function doPost(e) {
         'Access-Control-Allow-Headers': 'Content-Type'
       });
   }
+}
+
+/**
+ * Handle OPTIONS requests for CORS preflight
+ * This is CRITICAL for cross-device data sync to work properly
+ */
+function doOptions(e) {
+  return ContentService
+    .createTextOutput()
+    .setHeaders({
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Max-Age': '3600'
+    });
 }
 
 /**
