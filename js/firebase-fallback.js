@@ -32,12 +32,39 @@ class FirebaseFallbackClass {
 
         // Listen for connection status updates
         window.addEventListener('connectionStatusUpdate', (event) => {
-            const { online, databaseType, error } = event.detail;
+            const { online, databaseType, error, shouldFallback } = event.detail;
             if (databaseType === 'firebase') {
                 this.isFirebaseAvailable = online;
                 this.connectionStatus = online ? 'online' : 'offline';
+                
+                // If we should fallback due to error, switch to localStorage mode
+                if (shouldFallback && !online) {
+                    console.warn('⚠️ Switching to localStorage mode due to Firebase error:', error);
+                    this.connectionStatus = 'localStorage';
+                    this.isFirebaseAvailable = false;
+                }
             } else if (databaseType === 'localStorage') {
                 this.connectionStatus = 'localStorage';
+            }
+        });
+
+        // Listen for database access verification results
+        window.addEventListener('databaseAccessVerified', (event) => {
+            const { verified, reason, shouldFallback } = event.detail;
+            
+            if (!verified) {
+                console.warn(`⚠️ Database access verification failed: ${reason}`);
+                
+                if (shouldFallback) {
+                    console.warn('⚠️ Switching to localStorage mode due to access verification failure');
+                    this.connectionStatus = 'localStorage';
+                    this.isFirebaseAvailable = false;
+                    
+                    // Notify UI about the fallback
+                    this.notifyConnectionChange(false, 'localStorage', `Database access failed: ${reason}`);
+                }
+            } else {
+                console.log('✅ Database access verification successful');
             }
         });
 
@@ -341,16 +368,47 @@ class FirebaseFallbackClass {
 
     async testFirebaseConnection() {
         if (!this.database) {
+            console.warn('⚠️ Cannot test Firebase connection - database not initialized');
             return false;
         }
 
         try {
-            // Test by reading server timestamp
-            const serverTimeRef = window.firebase.database.ref(this.database, '.info/serverTimeOffset');
-            const snapshot = await window.firebase.database.get(serverTimeRef);
-            return snapshot.exists();
+            // Use the centralized connection test from firebase-config.js
+            if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.testFirebaseConnection) {
+                return await FirebaseConfig.testFirebaseConnection();
+            }
+            
+            // Fallback test method using valid database paths
+            const testRef = window.firebase.database.ref(this.database, 'connection_test');
+            const testData = {
+                timestamp: Date.now(),
+                test: true
+            };
+            
+            await window.firebase.database.set(testRef, testData);
+            const snapshot = await window.firebase.database.get(testRef);
+            const success = snapshot.exists() && snapshot.val().test === true;
+            
+            if (success) {
+                // Clean up test data
+                await window.firebase.database.set(testRef, null);
+            }
+            
+            return success;
         } catch (error) {
             console.error('❌ Firebase connection test failed:', error);
+            console.error('❌ Connection test error details:', {
+                code: error.code,
+                message: error.message
+            });
+            
+            // Handle specific error types for better fallback decisions
+            if (error.code === 'PERMISSION_DENIED') {
+                console.error('🔒 Database permission denied - should fallback to localStorage');
+            } else if (error.message && error.message.includes('Invalid token in path')) {
+                console.error('🔤 Invalid path token - check database structure');
+            }
+            
             return false;
         }
     }
