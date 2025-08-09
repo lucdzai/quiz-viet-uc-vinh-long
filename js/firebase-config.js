@@ -8,13 +8,13 @@
 // Firebase configuration object
 // IMPORTANT: Replace these with your actual Firebase project configuration
 const FIREBASE_CONFIG = {
-    apiKey: "your-api-key-here",
-    authDomain: "your-project-id.firebaseapp.com", 
-    databaseURL: "https://your-project-id-default-rtdb.firebaseio.com/",
-    projectId: "your-project-id",
-    storageBucket: "your-project-id.appspot.com",
-    messagingSenderId: "123456789012",
-    appId: "1:123456789012:web:your-app-id-here"
+    apiKey : "AIzaSyCweCbYPM-OWpQ5tVrK7AMT-xh0OL_SgLI" , 
+    authDomain : "quiz-viet-uc-vinh-long.firebaseapp.com" , 
+    databaseURL : "https://quiz-viet-uc-vinh-long-default-rtdb.asia-southeast1.firebasedatabase.app" , 
+    projectId : “quiz-viet-uc-vinh-long” , 
+    storageBucket : "quiz-viet-uc-vinh-long.firebasestorage.app" , 
+    messagingSenderId : "324450811055" , 
+    appId : "1:324450811055:web:0c114401847a7c664ca85a"
 };
 
 // Firebase database reference paths
