@@ -112,14 +112,6 @@ function updateConnectionDisplay(isOnline, errorMessage = null) {
     if (dataSourceElement) {
         dataSourceElement.textContent = isOnline ? 'Google Sheets + localStorage' : 'localStorage only';
     }
-    
-    // Trigger connection status event for other components
-    window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { 
-        detail: { 
-            online: isOnline, 
-            error: errorMessage 
-        }
-    }));
 }
 
 // Refresh dashboard data
