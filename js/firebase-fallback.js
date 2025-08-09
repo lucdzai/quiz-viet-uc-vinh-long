@@ -2,15 +2,9 @@
  * Firebase Fallback Module
  * 
  * This module provides a fallback when Firebase CDN is blocked or unavailable.
+ * Updated for Firebase SDK v10.7.1 with modular imports.
  * It attempts to load Firebase from CDN, and falls back to localStorage with 
  * better error handling and user feedback.
- */
-
-/**
- * Firebase Fallback Module
- * 
- * This module provides a unified interface for Firebase and localStorage operations.
- * It automatically detects Firebase availability and falls back gracefully.
  */
 
 class FirebaseFallbackClass {
@@ -57,7 +51,7 @@ class FirebaseFallbackClass {
                     this.connectionStatus = 'online';
                 }
             }
-        }, 200);
+        }, 300);
     }
 
     notifyConnectionChange(online, source, errorMessage = null) {
@@ -88,11 +82,14 @@ class FirebaseFallbackClass {
 
     async saveToFirebase(userData) {
         try {
-            const userId = userData.id || this.database.ref().child('users').push().key;
+            const usersRef = window.firebase.database.ref(this.database, 'users');
+            const newUserRef = window.firebase.database.push(usersRef);
+            const userId = userData.id || newUserRef.key;
             userData.id = userId;
             userData.timestamp = userData.timestamp || new Date().toISOString();
 
-            await this.database.ref(`users/${userId}`).set(userData);
+            const userRef = window.firebase.database.ref(this.database, `users/${userId}`);
+            await window.firebase.database.set(userRef, userData);
             
             // Update stats
             await this.updateFirebaseStats('totalParticipants', 1);
@@ -137,13 +134,13 @@ class FirebaseFallbackClass {
         if (!this.database) return;
 
         try {
-            const statsRef = this.database.ref('stats');
+            const statsRef = window.firebase.database.ref(this.database, 'stats');
             const updates = {
-                [statKey]: firebase.database.ServerValue.increment(increment),
+                [statKey]: window.firebase.database.increment(increment),
                 lastUpdated: new Date().toISOString()
             };
             
-            await statsRef.update(updates);
+            await window.firebase.database.set(statsRef, updates);
         } catch (error) {
             console.error(`❌ Failed to update Firebase stat ${statKey}:`, error);
         }
@@ -152,7 +149,8 @@ class FirebaseFallbackClass {
     async getAllUserData() {
         if (this.isFirebaseAvailable && this.database) {
             try {
-                const snapshot = await this.database.ref('users').once('value');
+                const usersRef = window.firebase.database.ref(this.database, 'users');
+                const snapshot = await window.firebase.database.get(usersRef);
                 const users = snapshot.val() || {};
                 
                 const userArray = Object.keys(users).map(key => ({
@@ -190,7 +188,8 @@ class FirebaseFallbackClass {
     async getStats() {
         if (this.isFirebaseAvailable && this.database) {
             try {
-                const snapshot = await this.database.ref('stats').once('value');
+                const statsRef = window.firebase.database.ref(this.database, 'stats');
+                const snapshot = await window.firebase.database.get(statsRef);
                 const stats = snapshot.val() || {};
                 
                 return {
@@ -240,7 +239,7 @@ class FirebaseFallbackClass {
         }
     }
 
-    // Real-time listeners (Firebase only)
+    // Real-time listeners (Firebase only) - Updated for v10
     onDataChange(callback) {
         if (!this.isFirebaseAvailable || !this.database) {
             console.warn('⚠️ Real-time listeners not available - Firebase not initialized');
@@ -248,10 +247,10 @@ class FirebaseFallbackClass {
         }
 
         try {
-            const usersRef = this.database.ref('users');
-            const statsRef = this.database.ref('stats');
+            const usersRef = window.firebase.database.ref(this.database, 'users');
+            const statsRef = window.firebase.database.ref(this.database, 'stats');
             
-            const usersListener = usersRef.on('value', (snapshot) => {
+            const usersUnsubscribe = window.firebase.database.onValue(usersRef, (snapshot) => {
                 const users = snapshot.val() || {};
                 const userArray = Object.keys(users).map(key => ({
                     id: key,
@@ -265,7 +264,7 @@ class FirebaseFallbackClass {
                 });
             });
 
-            const statsListener = statsRef.on('value', (snapshot) => {
+            const statsUnsubscribe = window.firebase.database.onValue(statsRef, (snapshot) => {
                 const stats = snapshot.val() || {};
                 console.log('🔥 Firebase stats update:', stats);
                 callback({
@@ -275,16 +274,16 @@ class FirebaseFallbackClass {
             });
 
             // Store listeners for cleanup
-            this.listeners.set('users', { ref: usersRef, listener: usersListener });
-            this.listeners.set('stats', { ref: statsRef, listener: statsListener });
+            this.listeners.set('users', { unsubscribe: usersUnsubscribe });
+            this.listeners.set('stats', { unsubscribe: statsUnsubscribe });
 
             console.log('✅ Firebase real-time listeners established');
 
             // Return unsubscribe function
             return () => {
                 console.log('🔥 Cleaning up Firebase listeners');
-                usersRef.off('value', usersListener);
-                statsRef.off('value', statsListener);
+                usersUnsubscribe();
+                statsUnsubscribe();
                 this.listeners.delete('users');
                 this.listeners.delete('stats');
             };
@@ -340,11 +339,27 @@ class FirebaseFallbackClass {
         }
     }
 
+    async testFirebaseConnection() {
+        if (!this.database) {
+            return false;
+        }
+
+        try {
+            // Test by reading server timestamp
+            const serverTimeRef = window.firebase.database.ref(this.database, '.info/serverTimeOffset');
+            const snapshot = await window.firebase.database.get(serverTimeRef);
+            return snapshot.exists();
+        } catch (error) {
+            console.error('❌ Firebase connection test failed:', error);
+            return false;
+        }
+    }
+
     cleanup() {
         // Clean up Firebase listeners
-        this.listeners.forEach(({ ref, listener }, key) => {
-            if (ref && typeof ref.off === 'function') {
-                ref.off('value', listener);
+        this.listeners.forEach(({ unsubscribe }, key) => {
+            if (unsubscribe && typeof unsubscribe === 'function') {
+                unsubscribe();
             }
         });
         this.listeners.clear();

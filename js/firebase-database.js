@@ -2,6 +2,7 @@
  * Firebase Realtime Database Service
  * 
  * This module provides Firebase Realtime Database integration to replace Google Sheets.
+ * Updated for Firebase SDK v10.7.1 with modular imports.
  * Maintains the same interface as GoogleSheetsIntegration for compatibility.
  */
 
@@ -44,44 +45,48 @@ class FirebaseDatabase {
                     this.setupConnectionMonitoring();
                 }
             }
-        }, 150);
+        }, 250);
     }
 
     /**
-     * Set up Firebase connection monitoring
+     * Set up Firebase connection monitoring with v10 syntax
      */
     setupConnectionMonitoring() {
         if (!this.database) return;
 
-        const connectedRef = this.database.ref('.info/connected');
-        connectedRef.on('value', (snapshot) => {
-            this.isOnline = snapshot.val() === true;
-            console.log(`🔥 Firebase status: ${this.isOnline ? 'Online' : 'Offline'}`);
-            
-            // Trigger connection status update for admin dashboard
-            window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { 
-                detail: { 
-                    online: this.isOnline,
-                    databaseType: 'firebase'
-                }
-            }));
-        }, (error) => {
-            console.error('❌ Firebase connection monitoring error:', error);
-            this.isOnline = false;
-            
-            // Trigger connection status update for errors
-            window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { 
-                detail: { 
-                    online: false,
-                    databaseType: 'firebase',
-                    error: error.message
-                }
-            }));
-        });
+        try {
+            const connectedRef = window.firebase.database.ref(this.database, '.info/connected');
+            window.firebase.database.onValue(connectedRef, (snapshot) => {
+                this.isOnline = snapshot.val() === true;
+                console.log(`🔥 Firebase status: ${this.isOnline ? 'Online' : 'Offline'}`);
+                
+                // Trigger connection status update for admin dashboard
+                window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { 
+                    detail: { 
+                        online: this.isOnline,
+                        databaseType: 'firebase'
+                    }
+                }));
+            }, (error) => {
+                console.error('❌ Firebase connection monitoring error:', error);
+                this.isOnline = false;
+                
+                // Trigger connection status update for errors
+                window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { 
+                    detail: { 
+                        online: false,
+                        databaseType: 'firebase',
+                        error: error.message
+                    }
+                }));
+            });
+        } catch (error) {
+            console.error('❌ Failed to setup connection monitoring:', error);
+        }
     }
 
     /**
-     * Save user data to Firebase
+     * Save user data to Firebase with v10 syntax
      */
     async saveUserData(userData) {
         try {
@@ -89,8 +94,10 @@ class FirebaseDatabase {
                 throw new Error('Firebase database not initialized');
             }
 
-            // Generate user ID if not provided
-            const userId = userData.id || this.database.ref().child('users').push().key;
+            // Generate user ID if not provided using v10 push
+            const usersRef = window.firebase.database.ref(this.database, 'users');
+            const newUserRef = window.firebase.database.push(usersRef);
+            const userId = userData.id || newUserRef.key;
             userData.id = userId;
             
             // Add timestamp if not present
@@ -100,8 +107,9 @@ class FirebaseDatabase {
 
             console.log(`🔄 Saving user data to Firebase:`, userData);
 
-            // Save to Firebase
-            await this.database.ref(`users/${userId}`).set(userData);
+            // Save to Firebase using v10 set
+            const userRef = window.firebase.database.ref(this.database, `users/${userId}`);
+            await window.firebase.database.set(userRef, userData);
             
             // Update stats
             await this.updateStats('totalParticipants', 1);
@@ -132,7 +140,7 @@ class FirebaseDatabase {
     }
 
     /**
-     * Update quiz result
+     * Update quiz result with v10 syntax
      */
     async updateQuizResult(userId, score, answers) {
         try {
@@ -146,7 +154,8 @@ class FirebaseDatabase {
                 quizCompletedAt: new Date().toISOString()
             };
 
-            await this.database.ref(`users/${userId}`).update(updateData);
+            const userRef = window.firebase.database.ref(this.database, `users/${userId}`);
+            await window.firebase.database.set(userRef, updateData);
             
             // Update stats
             await this.updateStats('completedQuiz', 1);
@@ -166,7 +175,7 @@ class FirebaseDatabase {
     }
 
     /**
-     * Update wheel result
+     * Update wheel result with v10 syntax
      */
     async updateWheelResult(userId, prize) {
         try {
@@ -179,7 +188,8 @@ class FirebaseDatabase {
                 wheelCompletedAt: new Date().toISOString()
             };
 
-            await this.database.ref(`users/${userId}`).update(updateData);
+            const userRef = window.firebase.database.ref(this.database, `users/${userId}`);
+            await window.firebase.database.set(userRef, updateData);
             this.showNotification('✅ Đã lưu kết quả vòng quay', 'success');
             return { success: true, source: 'firebase' };
             
@@ -192,7 +202,7 @@ class FirebaseDatabase {
     }
 
     /**
-     * Update final choice
+     * Update final choice with v10 syntax
      */
     async updateFinalChoice(userId, choice, registrationData) {
         try {
@@ -206,7 +216,8 @@ class FirebaseDatabase {
                 finalChoiceAt: new Date().toISOString()
             };
 
-            await this.database.ref(`users/${userId}`).update(updateData);
+            const userRef = window.firebase.database.ref(this.database, `users/${userId}`);
+            await window.firebase.database.set(userRef, updateData);
             
             // Update stats
             if (choice === 'register') {
@@ -227,7 +238,7 @@ class FirebaseDatabase {
     }
 
     /**
-     * Get statistics
+     * Get statistics with v10 syntax
      */
     async getStats() {
         try {
@@ -235,7 +246,8 @@ class FirebaseDatabase {
                 throw new Error('Firebase database not initialized');
             }
 
-            const snapshot = await this.database.ref('stats').once('value');
+            const statsRef = window.firebase.database.ref(this.database, 'stats');
+            const snapshot = await window.firebase.database.get(statsRef);
             const stats = snapshot.val() || {};
             
             return {
@@ -256,7 +268,7 @@ class FirebaseDatabase {
     }
 
     /**
-     * Get all user data (for admin dashboard)
+     * Get all user data (for admin dashboard) with v10 syntax
      */
     async getAllUserData() {
         try {
@@ -264,7 +276,8 @@ class FirebaseDatabase {
                 throw new Error('Firebase database not initialized');
             }
 
-            const snapshot = await this.database.ref('users').once('value');
+            const usersRef = window.firebase.database.ref(this.database, 'users');
+            const snapshot = await window.firebase.database.get(usersRef);
             const users = snapshot.val() || {};
             
             // Convert object to array
@@ -290,7 +303,7 @@ class FirebaseDatabase {
     }
 
     /**
-     * Test Firebase connection
+     * Test Firebase connection with v10 syntax
      */
     async testConnection() {
         try {
@@ -299,7 +312,8 @@ class FirebaseDatabase {
             }
 
             // Test by reading server timestamp
-            const snapshot = await this.database.ref('.info/serverTimeOffset').once('value');
+            const serverTimeRef = window.firebase.database.ref(this.database, '.info/serverTimeOffset');
+            const snapshot = await window.firebase.database.get(serverTimeRef);
             this.isOnline = true;
             return true;
             
@@ -311,7 +325,7 @@ class FirebaseDatabase {
     }
 
     /**
-     * Set up real-time listener for live dashboard updates
+     * Set up real-time listener for live dashboard updates with v10 syntax
      */
     onDataChange(callback) {
         if (!this.database) {
@@ -321,10 +335,10 @@ class FirebaseDatabase {
 
         try {
             // Listen to users data
-            const usersRef = this.database.ref('users');
-            const statsRef = this.database.ref('stats');
+            const usersRef = window.firebase.database.ref(this.database, 'users');
+            const statsRef = window.firebase.database.ref(this.database, 'stats');
             
-            const usersListener = usersRef.on('value', (snapshot) => {
+            const usersUnsubscribe = window.firebase.database.onValue(usersRef, (snapshot) => {
                 const users = snapshot.val() || {};
                 const userArray = Object.keys(users).map(key => ({
                     id: key,
@@ -340,7 +354,7 @@ class FirebaseDatabase {
                 console.error('❌ Firebase users listener error:', error);
             });
 
-            const statsListener = statsRef.on('value', (snapshot) => {
+            const statsUnsubscribe = window.firebase.database.onValue(statsRef, (snapshot) => {
                 const stats = snapshot.val() || {};
                 console.log('🔥 Firebase stats update:', stats);
                 callback({
@@ -352,16 +366,16 @@ class FirebaseDatabase {
             });
 
             // Store listeners for cleanup
-            this.listeners.set('users', { ref: usersRef, listener: usersListener });
-            this.listeners.set('stats', { ref: statsRef, listener: statsListener });
+            this.listeners.set('users', { unsubscribe: usersUnsubscribe });
+            this.listeners.set('stats', { unsubscribe: statsUnsubscribe });
 
             console.log('✅ Firebase real-time listeners established');
 
             // Return unsubscribe function
             return () => {
                 console.log('🔥 Cleaning up Firebase listeners');
-                usersRef.off('value', usersListener);
-                statsRef.off('value', statsListener);
+                usersUnsubscribe();
+                statsUnsubscribe();
                 this.listeners.delete('users');
                 this.listeners.delete('stats');
             };
@@ -373,19 +387,19 @@ class FirebaseDatabase {
     }
 
     /**
-     * Update statistics in Firebase
+     * Update statistics in Firebase with v10 syntax
      */
     async updateStats(statKey, increment = 1) {
         if (!this.database) return;
 
         try {
-            const statsRef = this.database.ref('stats');
+            const statsRef = window.firebase.database.ref(this.database, 'stats');
             const updates = {
-                [statKey]: firebase.database.ServerValue.increment(increment),
+                [statKey]: window.firebase.database.increment(increment),
                 lastUpdated: new Date().toISOString()
             };
             
-            await statsRef.update(updates);
+            await window.firebase.database.set(statsRef, updates);
         } catch (error) {
             console.error(`❌ Failed to update stat ${statKey}:`, error);
         }
@@ -537,8 +551,10 @@ class FirebaseDatabase {
      */
     cleanup() {
         // Remove all listeners
-        this.listeners.forEach(({ ref, listener }, key) => {
-            ref.off('value', listener);
+        this.listeners.forEach(({ unsubscribe }, key) => {
+            if (unsubscribe && typeof unsubscribe === 'function') {
+                unsubscribe();
+            }
         });
         this.listeners.clear();
     }
