@@ -37,12 +37,16 @@ function initializeFirebase() {
         if (typeof window.firebase === 'undefined' || !window.firebase.initializeApp) {
             console.warn('⚠️ Firebase SDK not loaded. Please include Firebase scripts in your HTML.');
             console.info('💡 Application will continue in offline mode using localStorage');
+            
+            // Trigger fallback event immediately
+            triggerConnectionUpdate(false, 'localStorage', 'Firebase SDK not available');
             return false;
         }
 
         // Check if Firebase is already initialized
         if (firebaseApp) {
             console.log('✅ Firebase already initialized');
+            triggerConnectionUpdate(true, 'firebase');
             return true;
         }
 
@@ -56,6 +60,9 @@ function initializeFirebase() {
         // Set up connection monitoring
         setupConnectionMonitoring();
         
+        // Trigger successful initialization event
+        triggerConnectionUpdate(true, 'firebase');
+        
         return true;
         
     } catch (error) {
@@ -65,16 +72,26 @@ function initializeFirebase() {
         isFirebaseInitialized = false;
         
         // Trigger error event for UI notification
-        window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { 
-            detail: { 
-                online: false,
-                databaseType: 'localStorage',
-                error: `Firebase initialization failed: ${error.message}`
-            }
-        }));
+        triggerConnectionUpdate(false, 'localStorage', `Firebase initialization failed: ${error.message}`);
         
         return false;
     }
+}
+
+/**
+ * Trigger connection status update events
+ */
+function triggerConnectionUpdate(online, databaseType, error = null) {
+    const detail = { 
+        online: online,
+        databaseType: databaseType
+    };
+    
+    if (error) {
+        detail.error = error;
+    }
+    
+    window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { detail }));
 }
 
 /**
@@ -110,13 +127,11 @@ function setupConnectionMonitoring() {
             }));
             
             // Trigger connection status update for admin dashboard
-            window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { 
-                detail: { 
-                    online: connected,
-                    databaseType: connected ? 'firebase' : 'localStorage',
-                    message: connected ? 'Firebase connected' : 'Using offline mode'
-                }
-            }));
+            triggerConnectionUpdate(
+                connected, 
+                connected ? 'firebase' : 'localStorage',
+                connected ? null : 'Firebase disconnected'
+            );
         }, (error) => {
             console.error('❌ Firebase connection monitoring failed:', error);
             console.error('❌ Connection monitoring error details:', {
@@ -126,14 +141,7 @@ function setupConnectionMonitoring() {
             console.info('📱 Continuing in offline mode');
             
             // Trigger error event with more detail
-            window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { 
-                detail: { 
-                    online: false,
-                    databaseType: 'localStorage',
-                    error: `Connection monitoring failed: ${error.message}`,
-                    errorCode: error.code
-                }
-            }));
+            triggerConnectionUpdate(false, 'localStorage', `Connection monitoring failed: ${error.message}`);
         });
     } catch (error) {
         console.error('❌ Failed to setup connection monitoring:', error);
@@ -334,16 +342,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.warn('⚠️ Firebase SDK not available - falling back to localStorage mode');
                 console.info('💡 Tip: This could be due to network issues, ad blockers, or CDN blocking');
                 // Trigger fallback mode event with more informative message
-                window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { 
-                    detail: { 
-                        online: false,
-                        databaseType: 'localStorage',
-                        error: 'Firebase SDK not loaded - using offline mode'
-                    }
-                }));
+                triggerConnectionUpdate(false, 'localStorage', 'Firebase SDK not loaded - using offline mode');
             }
         }, 200); // Increased delay for module loading
     } else {
         console.log('⚠️ Firebase not configured. Update FIREBASE_CONFIG in firebase-config.js');
+        triggerConnectionUpdate(false, 'localStorage', 'Firebase not configured');
     }
 });

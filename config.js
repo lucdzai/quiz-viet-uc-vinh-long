@@ -1,23 +1,10 @@
 // Cấu hình cho Quiz App
 const CONFIG = {
-    // Database configuration - Choose between Firebase or Google Sheets
-    DATABASE_TYPE: 'firebase', // 'firebase' or 'google_sheets'
+    // Database configuration - Simplified to Firebase only
+    DATABASE_TYPE: 'firebase', // 'firebase' only
     
-    // Firebase configuration (used when DATABASE_TYPE is 'firebase')
+    // Firebase configuration
     USE_FIREBASE: true,
-    
-    // Google Sheets configuration (used when DATABASE_TYPE is 'google_sheets') 
-    // QUAN TRỌNG: Thay YOUR_SCRIPT_ID bằng ID thực tế từ Google Apps Script
-    // URL có dạng: https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec
-    // 
-    // HƯỚNG DẪN SETUP:
-    // 1. Tạo Google Apps Script từ file docs/google-apps-script.js
-    // 2. Deploy as Web App với quyền "Anyone"
-    // 3. Copy URL của Web App và thay thế URL dưới đây
-    // 4. Xem docs/GOOGLE_SHEETS_SETUP.md để có hướng dẫn chi tiết
-    //
-    // LưU Ý: URL dưới đây là placeholder, cần thay bằng URL thực của bạn
-    GOOGLE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzvWc7c_7rzT9-VOGJR2G07FPl3IGNASc4HGUhHeE_Ku5P-khFV8TPOWglBgmBlbLMZ/exec',
     
     // URL của website (sẽ tự động cập nhật khi deploy)
     WEBSITE_URL: 'https://lucdzai.github.io/quiz-viet-uc-vinh-long',
@@ -42,282 +29,225 @@ const CONFIG = {
     }
 };
 
-// Database helper functions with Firebase and Google Sheets support
+// Database helper functions - Simplified Firebase-only implementation
 const Database = {
-    // Get the active database service based on configuration
-    getActiveService() {
-        // Prioritize FirebaseFallback as the unified interface
-        if (typeof window.FirebaseFallback !== 'undefined') {
-            return window.FirebaseFallback;
-        } else {
-            // Fallback to built-in methods if FirebaseFallback not available
-            return this;
-        }
-    },
-
     // Check if Firebase is available and configured
     isFirebaseAvailable() {
-        return CONFIG.USE_FIREBASE && 
-               typeof FirebaseDB !== 'undefined' && 
-               typeof FirebaseConfig !== 'undefined' && 
-               FirebaseConfig.isFirebaseConfigured();
-    },
-
-    // Check if Google Sheets is available
-    isGoogleSheetsAvailable() {
-        return typeof GoogleSheets !== 'undefined';
+        return typeof FirebaseConfig !== 'undefined' && 
+               FirebaseConfig.isFirebaseConfigured() &&
+               FirebaseConfig.getConnectionStatus().initialized;
     },
 
     // Get current database type
     getCurrentDatabaseType() {
-        // Check FirebaseFallback first for unified status
-        if (typeof window.FirebaseFallback !== 'undefined') {
-            const status = window.FirebaseFallback.getConnectionStatus();
-            return status.source; // Will be 'firebase' or 'localStorage'
-        } else if (CONFIG.DATABASE_TYPE === 'firebase' && this.isFirebaseAvailable()) {
-            return 'firebase';
-        } else if (CONFIG.DATABASE_TYPE === 'google_sheets' && this.isGoogleSheetsAvailable()) {
-            return 'google_sheets';
-        } else {
-            return 'localStorage';
+        if (this.isFirebaseAvailable()) {
+            const database = FirebaseConfig.getDatabase();
+            return database ? 'firebase' : 'localStorage';
         }
+        return 'localStorage';
     },
 
-    // Lưu dữ liệu người dùng với retry logic
-    async saveUserData(userData, retryCount = 0) {
-        const activeService = this.getActiveService();
-        
-        // Use service-specific method if available
-        if (activeService !== this && typeof activeService.saveUserData === 'function') {
-            return await activeService.saveUserData(userData);
-        }
-        
-        // Fallback to original Google Sheets implementation
-        const maxRetries = 2;
-        
+    // Lưu dữ liệu người dùng - Firebase only with localStorage fallback
+    async saveUserData(userData) {
         try {
-            console.log(`🔄 Đang lưu dữ liệu người dùng (attempt ${retryCount + 1})...`, userData);
-            
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-            
-            const response = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'cors',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    action: 'saveUser',
-                    data: userData
-                }),
-                signal: controller.signal
-            });
-            
-            clearTimeout(timeoutId);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+            if (this.isFirebaseAvailable()) {
+                const database = FirebaseConfig.getDatabase();
+                if (database) {
+                    console.log('🔄 Saving to Firebase...');
+                    
+                    const userRef = window.firebase.database.ref(database, `users/${userData.id || Date.now()}`);
+                    await window.firebase.database.set(userRef, {
+                        ...userData,
+                        savedAt: window.firebase.database.serverTimestamp(),
+                        source: 'firebase'
+                    });
+                    
+                    console.log('✅ Firebase save successful');
+                    return { 
+                        success: true, 
+                        userId: userData.id,
+                        source: 'firebase'
+                    };
+                }
             }
             
-            const result = await response.json();
-            console.log('✅ Kết quả lưu dữ liệu:', result);
-            
-            if (result.success) {
-                return result;
-            } else {
-                throw new Error(result.error || 'Không thể lưu dữ liệu');
-            }
+            // Fallback to localStorage
+            throw new Error('Firebase not available');
             
         } catch (error) {
-            console.warn(`❌ Lỗi lưu dữ liệu (attempt ${retryCount + 1}):`, error.message);
-            
-            // Retry logic
-            if (retryCount < maxRetries && !error.name === 'AbortError') {
-                console.log(`🔄 Thử lại sau ${(retryCount + 1) * 1000}ms...`);
-                await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 1000));
-                return this.saveUserData(userData, retryCount + 1);
-            }
-            
-            // Fallback: lưu vào localStorage
-            console.log('💾 Sử dụng localStorage fallback...');
+            console.warn('❌ Firebase save failed, using localStorage:', error.message);
             const userId = this.saveToLocalStorage(userData);
             return { 
                 success: true, 
                 fallback: true, 
                 userId: userId,
-                message: 'Đã lưu offline'
+                source: 'localStorage',
+                message: 'Saved offline'
             };
         }
     },
 
     // Cập nhật kết quả quiz
     async updateQuizResult(userId, score, answers) {
-        const activeService = this.getActiveService();
-        
-        // Use service-specific method if available
-        if (activeService !== this && typeof activeService.updateQuizResult === 'function') {
-            return await activeService.updateQuizResult(userId, score, answers);
-        }
-        
-        // Fallback to original implementation
         try {
-            console.log('Đang cập nhật kết quả quiz...', {userId, score});
+            if (this.isFirebaseAvailable()) {
+                const database = FirebaseConfig.getDatabase();
+                if (database) {
+                    const userRef = window.firebase.database.ref(database, `users/${userId}`);
+                    await window.firebase.database.update(userRef, {
+                        score: score,
+                        answers: answers,
+                        quizCompletedAt: window.firebase.database.serverTimestamp()
+                    });
+                    
+                    console.log('✅ Quiz result updated in Firebase');
+                    return { success: true, source: 'firebase' };
+                }
+            }
             
-            const response = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'cors',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    action: 'updateQuiz',
-                    userId: userId,
-                    score: score,
-                    answers: answers
-                })
-            });
-            
-            const result = await response.json();
-            console.log('Kết quả cập nhật quiz:', result);
-            return result;
+            // Fallback to localStorage
+            this.updateLocalStorage(userId, { score, answers });
+            return { success: true, fallback: true, source: 'localStorage' };
             
         } catch (error) {
-            console.error('Lỗi cập nhật quiz:', error);
+            console.error('❌ Quiz update error:', error);
             this.updateLocalStorage(userId, { score, answers });
-            return { success: true, fallback: true };
+            return { success: true, fallback: true, source: 'localStorage' };
         }
     },
 
     // Lưu kết quả vòng quay
     async updateWheelResult(userId, prize) {
-        const activeService = this.getActiveService();
-        
-        // Use service-specific method if available
-        if (activeService !== this && typeof activeService.updateWheelResult === 'function') {
-            return await activeService.updateWheelResult(userId, prize);
-        }
-        
-        // Fallback to original implementation
         try {
-            console.log('Đang lưu kết quả vòng quay...', {userId, prize});
+            if (this.isFirebaseAvailable()) {
+                const database = FirebaseConfig.getDatabase();
+                if (database) {
+                    const userRef = window.firebase.database.ref(database, `users/${userId}`);
+                    await window.firebase.database.update(userRef, {
+                        prize: prize,
+                        wheelCompletedAt: window.firebase.database.serverTimestamp()
+                    });
+                    
+                    console.log('✅ Wheel result updated in Firebase');
+                    return { success: true, source: 'firebase' };
+                }
+            }
             
-            const response = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'cors',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    action: 'updateWheel',
-                    userId: userId,
-                    prize: prize
-                })
-            });
-            
-            const result = await response.json();
-            console.log('Kết quả cập nhật vòng quay:', result);
-            return result;
+            // Fallback to localStorage
+            this.updateLocalStorage(userId, { prize });
+            return { success: true, fallback: true, source: 'localStorage' };
             
         } catch (error) {
-            console.error('Lỗi cập nhật vòng quay:', error);
+            console.error('❌ Wheel update error:', error);
             this.updateLocalStorage(userId, { prize });
-            return { success: true, fallback: true };
+            return { success: true, fallback: true, source: 'localStorage' };
         }
     },
 
     // Lưu lựa chọn cuối
     async updateFinalChoice(userId, choice, registrationData) {
-        const activeService = this.getActiveService();
-        
-        // Use service-specific method if available
-        if (activeService !== this && typeof activeService.updateFinalChoice === 'function') {
-            return await activeService.updateFinalChoice(userId, choice, registrationData);
-        }
-        
-        // Fallback to original implementation
         try {
-            console.log('Đang lưu lựa chọn cuối...', {userId, choice});
+            if (this.isFirebaseAvailable()) {
+                const database = FirebaseConfig.getDatabase();
+                if (database) {
+                    const userRef = window.firebase.database.ref(database, `users/${userId}`);
+                    await window.firebase.database.update(userRef, {
+                        choice: choice,
+                        registrationData: registrationData,
+                        finalChoiceAt: window.firebase.database.serverTimestamp()
+                    });
+                    
+                    console.log('✅ Final choice updated in Firebase');
+                    return { success: true, source: 'firebase' };
+                }
+            }
             
-            const response = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'cors',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    action: 'updateFinal',
-                    userId: userId,
-                    choice: choice,
-                    registrationData: registrationData
-                })
-            });
-            
-            const result = await response.json();
-            console.log('Kết quả cập nhật lựa chọn cuối:', result);
-            return result;
+            // Fallback to localStorage
+            this.updateLocalStorage(userId, { choice, registrationData });
+            return { success: true, fallback: true, source: 'localStorage' };
             
         } catch (error) {
-            console.error('Lỗi cập nhật lựa chọn cuối:', error);
+            console.error('❌ Final choice update error:', error);
             this.updateLocalStorage(userId, { choice, registrationData });
-            return { success: true, fallback: true };
+            return { success: true, fallback: true, source: 'localStorage' };
         }
     },
 
     // Lấy thống kê
     async getStats() {
-        const activeService = this.getActiveService();
-        
-        // Use service-specific method if available
-        if (activeService !== this && typeof activeService.getStats === 'function') {
-            return await activeService.getStats();
-        }
-        
-        // Fallback to original implementation
         try {
-            const response = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'cors',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    action: 'getStats'
-                })
-            });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                return result;
-            } else {
-                throw new Error(result.error);
+            if (this.isFirebaseAvailable()) {
+                const database = FirebaseConfig.getDatabase();
+                if (database) {
+                    const usersRef = window.firebase.database.ref(database, 'users');
+                    const snapshot = await window.firebase.database.get(usersRef);
+                    
+                    if (snapshot.exists()) {
+                        const users = Object.values(snapshot.val());
+                        
+                        const totalParticipants = users.length;
+                        const completedQuiz = users.filter(u => u.score !== undefined).length;
+                        const passedQuiz = users.filter(u => u.score >= CONFIG.QUIZ_SETTINGS.PASS_SCORE).length;
+                        const registeredUsers = users.filter(u => 
+                            u.choice === 'register' || 
+                            u.registrationData?.registrationDecision === 'register'
+                        ).length;
+                        const declinedUsers = users.filter(u => 
+                            u.choice === 'decline' || 
+                            u.registrationData?.registrationDecision === 'decline'
+                        ).length;
+                        
+                        return {
+                            success: true,
+                            totalParticipants,
+                            completedQuiz,
+                            passedQuiz,
+                            registeredUsers,
+                            declinedUsers,
+                            lastUpdated: new Date().toISOString(),
+                            source: 'firebase'
+                        };
+                    }
+                }
             }
             
+            // Fallback to localStorage
+            return this.getLocalStats();
+            
         } catch (error) {
-            console.error('Lỗi lấy thống kê:', error);
+            console.error('❌ Stats error:', error);
             return this.getLocalStats();
         }
     },
 
     // Get all user data (for admin dashboard)
     async getAllUserData() {
-        const activeService = this.getActiveService();
-        
-        // Use service-specific method if available
-        if (activeService !== this && typeof activeService.getAllUserData === 'function') {
-            return await activeService.getAllUserData();
-        }
-        
-        // Fallback to localStorage
         try {
+            if (this.isFirebaseAvailable()) {
+                const database = FirebaseConfig.getDatabase();
+                if (database) {
+                    const usersRef = window.firebase.database.ref(database, 'users');
+                    const snapshot = await window.firebase.database.get(usersRef);
+                    
+                    if (snapshot.exists()) {
+                        return {
+                            success: true,
+                            data: Object.values(snapshot.val()),
+                            source: 'firebase'
+                        };
+                    }
+                }
+            }
+            
+            // Fallback to localStorage
             return {
                 success: true,
                 data: JSON.parse(localStorage.getItem('quizUsers') || '[]'),
                 source: 'localStorage'
             };
+            
         } catch (error) {
-            console.error('Error getting local user data:', error);
+            console.error('❌ Get all data error:', error);
             return {
                 success: false,
                 data: [],
@@ -399,65 +329,28 @@ const Database = {
         }
     },
 
-    // Test connection
+    // Test connection - Firebase only
     async testConnection() {
-        const activeService = this.getActiveService();
-        
-        // Use service-specific method if available
-        if (activeService !== this && typeof activeService.testConnection === 'function') {
-            return await activeService.testConnection();
-        } else if (activeService !== this && typeof activeService.healthCheck === 'function') {
-            // Use healthCheck if testConnection not available
-            const health = await activeService.healthCheck();
-            return health.connected;
-        }
-        
-        // Only test Google Sheets if we're explicitly using it and Firebase is not available
-        if (CONFIG.DATABASE_TYPE === 'google_sheets' && !this.isFirebaseAvailable()) {
-            try {
-                console.log('🔄 Testing Google Sheets connection...');
-                
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
-                
-                const response = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
-                    method: 'GET',
-                    mode: 'cors',
-                    signal: controller.signal
-                });
-                
-                clearTimeout(timeoutId);
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                const result = await response.json();
-                console.log('✅ Google Sheets connection test result:', result);
-                
-                if (result.success) {
-                    console.log(`🟢 google_sheets connection: ONLINE`);
-                    return true;
-                } else {
-                    throw new Error('Invalid response from Google Sheets service');
-                }
-                
-            } catch (error) {
-                console.warn(`🔴 google_sheets connection: OFFLINE -`, error.message);
-                
-                // Show user-friendly error message
-                if (error.name === 'AbortError') {
-                    console.warn('⏱️ Google Sheets timeout - using localStorage fallback');
-                } else if (error.message.includes('Failed to fetch')) {
-                    console.warn('🌐 Network error or CORS issue - using localStorage fallback');
-                }
-                
+        try {
+            console.log('🔄 Testing Firebase connection...');
+            
+            if (!this.isFirebaseAvailable()) {
+                console.log('🔴 Firebase not available - using localStorage');
                 return false;
             }
-        } else {
-            // For Firebase or other modes, don't test Google Sheets unnecessarily
-            console.log(`🔄 Testing ${this.getCurrentDatabaseType()} connection...`);
-            return false; // Will fall back to localStorage
+            
+            // Use Firebase config's test connection method
+            if (typeof FirebaseConfig.testFirebaseConnection === 'function') {
+                const result = await FirebaseConfig.testFirebaseConnection();
+                console.log(`${result ? '🟢' : '🔴'} Firebase connection: ${result ? 'ONLINE' : 'OFFLINE'}`);
+                return result;
+            }
+            
+            return false;
+            
+        } catch (error) {
+            console.warn(`🔴 Firebase connection test failed:`, error.message);
+            return false;
         }
     }
 };

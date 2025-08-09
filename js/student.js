@@ -138,21 +138,36 @@ class StudentDataManager {
      */
     async saveToFirebase(userData, attempt = 1) {
         try {
-            // Use the global Database object from config.js
-            if (typeof Database !== 'undefined' && Database.saveUserData) {
-                console.log(`🔄 Attempting Firebase save (attempt ${attempt})...`);
-                const result = await Database.saveUserData(userData);
-                
-                if (result.success && !result.fallback) {
-                    console.log('✅ Firebase save successful');
-                    return result;
-                } else if (result.fallback) {
-                    throw new Error('Firebase save fell back to localStorage');
-                } else {
-                    throw new Error('Firebase save failed');
+            // Use Firebase directly from firebase-config.js
+            if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
+                const database = FirebaseConfig.getDatabase();
+                if (!database) {
+                    throw new Error('Firebase database not available');
                 }
+
+                console.log(`🔄 Attempting Firebase save (attempt ${attempt})...`);
+                
+                // Generate user ID if not present
+                const userId = userData.id || Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9);
+                userData.id = userId;
+                
+                // Save directly to Firebase Realtime Database
+                const userRef = window.firebase.database.ref(database, `users/${userId}`);
+                await window.firebase.database.set(userRef, {
+                    ...userData,
+                    savedAt: window.firebase.database.serverTimestamp(),
+                    source: 'firebase'
+                });
+                
+                console.log('✅ Firebase save successful');
+                return {
+                    success: true,
+                    userId: userId,
+                    source: 'firebase',
+                    timestamp: new Date().toISOString()
+                };
             } else {
-                throw new Error('Database service not available');
+                throw new Error('Firebase not initialized');
             }
         } catch (error) {
             console.warn(`❌ Firebase save attempt ${attempt} failed:`, error.message);
@@ -266,12 +281,18 @@ class StudentDataManager {
                 performance: this.getQuizPerformanceData()
             };
 
-            if (this.isOnline) {
+            if (this.isOnline && typeof FirebaseConfig !== 'undefined') {
                 try {
-                    const result = await Database.updateQuizResult(userId, score, answers);
-                    if (result.success && !result.fallback) {
+                    const database = FirebaseConfig.getDatabase();
+                    if (database) {
+                        const userRef = window.firebase.database.ref(database, `users/${userId}`);
+                        await window.firebase.database.set(userRef, {
+                            ...quizData,
+                            updatedAt: window.firebase.database.serverTimestamp()
+                        });
+                        
                         this.showNotification('✅ Đã lưu kết quả quiz!', 'success');
-                        return result;
+                        return { success: true, source: 'firebase' };
                     }
                 } catch (error) {
                     console.warn('❌ Firebase quiz update failed:', error);
