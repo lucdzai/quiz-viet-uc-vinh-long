@@ -883,3 +883,100 @@ input:invalid:not(:focus):not(:placeholder-shown) {
         padding: 15px;
     }
 }
+
+/* Notification animations */
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+/* Student and Sync notification styles */
+.student-notification,
+.sync-notification {
+    position: fixed;
+    right: 20px;
+    color: white;
+    padding: 15px 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    z-index: 10000;
+    font-weight: 600;
+    max-width: 300px;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+    animation: slideInRight 0.3s ease;
+}
+
+.student-notification {
+    top: 20px;
+}
+
+.sync-notification {
+    top: 60px;
+    font-size: 13px;
+    font-weight: 500;
+    max-width: 280px;
+    z-index: 9999;
+}
+
+/* Offline indicator */
+.offline-indicator {
+    position: fixed;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #f39c12;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    z-index: 10001;
+    animation: slideInRight 0.3s ease;
+}
+
+/* Sync status indicator */
+.sync-status {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #34495e;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 15px;
+    font-size: 11px;
+    font-weight: 500;
+    z-index: 9998;
+    opacity: 0.8;
+}
+
+.sync-status.syncing {
+    background: #3498db;
+    animation: pulse 1.5s infinite;
+}
+
+.sync-status.pending {
+    background: #f39c12;
+}
+
+.sync-status.up-to-date {
+    background: #27ae60;
+}

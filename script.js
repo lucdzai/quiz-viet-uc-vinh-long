@@ -389,8 +389,14 @@ if (infoForm) {
     }
     
     try {
-        // Lưu vào database
-        const result = await Database.saveUserData(currentUser);
+        // Use enhanced StudentData service if available, fallback to Database
+        let result;
+        if (typeof StudentData !== 'undefined' && StudentData.saveUserData) {
+            result = await StudentData.saveUserData(currentUser);
+        } else {
+            result = await Database.saveUserData(currentUser);
+        }
+        
         if (result.success) {
             userId = result.userId || currentUser.timestamp;
             
@@ -398,10 +404,11 @@ if (infoForm) {
             document.getElementById('loading').style.display = 'none';
             showQuiz();
             
-            if (result.fallback) {
-                showNotification('⚠️ Đã lưu thông tin tạm thời (offline mode)', 'warning');
-            } else {
+            // Don't show notification here - StudentData service handles it
+            if (!result.offline && !result.fallback && typeof StudentData === 'undefined') {
                 showNotification('✅ Đã lưu thông tin thành công!', 'success');
+            } else if ((result.fallback || result.offline) && typeof StudentData === 'undefined') {
+                showNotification('⚠️ Đã lưu thông tin tạm thời (offline mode)', 'warning');
             }
         } else {
             throw new Error('Không thể lưu thông tin');
@@ -580,11 +587,18 @@ async function submitQuiz() {
     
     // Lưu kết quả vào database
     try {
-        await Database.updateQuizResult(userId, userScore, userAnswers);
-        showNotification('✅ Đã lưu kết quả quiz!', 'success');
+        // Use enhanced StudentData service if available, fallback to Database
+        if (typeof StudentData !== 'undefined' && StudentData.updateQuizResult) {
+            await StudentData.updateQuizResult(userId, userScore, userAnswers);
+        } else {
+            await Database.updateQuizResult(userId, userScore, userAnswers);
+            showNotification('✅ Đã lưu kết quả quiz!', 'success');
+        }
     } catch (error) {
         console.error('Lỗi lưu kết quả quiz:', error);
-        showNotification('⚠️ Lưu kết quả offline', 'warning');
+        if (typeof StudentData === 'undefined') {
+            showNotification('⚠️ Lưu kết quả offline', 'warning');
+        }
     }
     
     // Lưu vào currentUser
