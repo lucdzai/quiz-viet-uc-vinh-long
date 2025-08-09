@@ -1,5 +1,12 @@
 // Cấu hình cho Quiz App
 const CONFIG = {
+    // Database configuration - Choose between Firebase or Google Sheets
+    DATABASE_TYPE: 'firebase', // 'firebase' or 'google_sheets'
+    
+    // Firebase configuration (used when DATABASE_TYPE is 'firebase')
+    USE_FIREBASE: true,
+    
+    // Google Sheets configuration (used when DATABASE_TYPE is 'google_sheets') 
     // QUAN TRỌNG: Thay YOUR_SCRIPT_ID bằng ID thực tế từ Google Apps Script
     // URL có dạng: https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec
     // 
@@ -35,8 +42,286 @@ const CONFIG = {
     }
 };
 
-// Database helper functions
+// Database helper functions with Firebase and Google Sheets support
 const Database = {
+    // Get the active database service based on configuration
+    getActiveService() {
+        if (CONFIG.DATABASE_TYPE === 'firebase' && typeof FirebaseDB !== 'undefined') {
+            return FirebaseDB;
+        } else if (CONFIG.DATABASE_TYPE === 'google_sheets' && typeof GoogleSheets !== 'undefined') {
+            return GoogleSheets;
+        } else {
+            // Fallback to built-in methods
+            return this;
+        }
+    },
+
+    // Check if Firebase is available and configured
+    isFirebaseAvailable() {
+        return CONFIG.USE_FIREBASE && 
+               typeof FirebaseDB !== 'undefined' && 
+               typeof FirebaseConfig !== 'undefined' && 
+               FirebaseConfig.isFirebaseConfigured();
+    },
+
+    // Check if Google Sheets is available
+    isGoogleSheetsAvailable() {
+        return typeof GoogleSheets !== 'undefined';
+    },
+
+    // Get current database type
+    getCurrentDatabaseType() {
+        if (this.isFirebaseAvailable() && CONFIG.DATABASE_TYPE === 'firebase') {
+            return 'firebase';
+        } else if (this.isGoogleSheetsAvailable() && CONFIG.DATABASE_TYPE === 'google_sheets') {
+            return 'google_sheets';
+        } else {
+            return 'localStorage';
+        }
+    },
+
+    // Lưu dữ liệu người dùng với retry logic
+    async saveUserData(userData, retryCount = 0) {
+        const activeService = this.getActiveService();
+        
+        // Use service-specific method if available
+        if (activeService !== this && typeof activeService.saveUserData === 'function') {
+            return await activeService.saveUserData(userData);
+        }
+        
+        // Fallback to original Google Sheets implementation
+        const maxRetries = 2;
+        
+        try {
+            console.log(`🔄 Đang lưu dữ liệu người dùng (attempt ${retryCount + 1})...`, userData);
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+            
+            const response = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'cors',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'saveUser',
+                    data: userData
+                }),
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            console.log('✅ Kết quả lưu dữ liệu:', result);
+            
+            if (result.success) {
+                return result;
+            } else {
+                throw new Error(result.error || 'Không thể lưu dữ liệu');
+            }
+            
+        } catch (error) {
+            console.warn(`❌ Lỗi lưu dữ liệu (attempt ${retryCount + 1}):`, error.message);
+            
+            // Retry logic
+            if (retryCount < maxRetries && !error.name === 'AbortError') {
+                console.log(`🔄 Thử lại sau ${(retryCount + 1) * 1000}ms...`);
+                await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 1000));
+                return this.saveUserData(userData, retryCount + 1);
+            }
+            
+            // Fallback: lưu vào localStorage
+            console.log('💾 Sử dụng localStorage fallback...');
+            const userId = this.saveToLocalStorage(userData);
+            return { 
+                success: true, 
+                fallback: true, 
+                userId: userId,
+                message: 'Đã lưu offline'
+            };
+        }
+    },
+
+    // Cập nhật kết quả quiz
+    async updateQuizResult(userId, score, answers) {
+        const activeService = this.getActiveService();
+        
+        // Use service-specific method if available
+        if (activeService !== this && typeof activeService.updateQuizResult === 'function') {
+            return await activeService.updateQuizResult(userId, score, answers);
+        }
+        
+        // Fallback to original implementation
+        try {
+            console.log('Đang cập nhật kết quả quiz...', {userId, score});
+            
+            const response = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'cors',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'updateQuiz',
+                    userId: userId,
+                    score: score,
+                    answers: answers
+                })
+            });
+            
+            const result = await response.json();
+            console.log('Kết quả cập nhật quiz:', result);
+            return result;
+            
+        } catch (error) {
+            console.error('Lỗi cập nhật quiz:', error);
+            this.updateLocalStorage(userId, { score, answers });
+            return { success: true, fallback: true };
+        }
+    },
+
+    // Lưu kết quả vòng quay
+    async updateWheelResult(userId, prize) {
+        const activeService = this.getActiveService();
+        
+        // Use service-specific method if available
+        if (activeService !== this && typeof activeService.updateWheelResult === 'function') {
+            return await activeService.updateWheelResult(userId, prize);
+        }
+        
+        // Fallback to original implementation
+        try {
+            console.log('Đang lưu kết quả vòng quay...', {userId, prize});
+            
+            const response = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'cors',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'updateWheel',
+                    userId: userId,
+                    prize: prize
+                })
+            });
+            
+            const result = await response.json();
+            console.log('Kết quả cập nhật vòng quay:', result);
+            return result;
+            
+        } catch (error) {
+            console.error('Lỗi cập nhật vòng quay:', error);
+            this.updateLocalStorage(userId, { prize });
+            return { success: true, fallback: true };
+        }
+    },
+
+    // Lưu lựa chọn cuối
+    async updateFinalChoice(userId, choice, registrationData) {
+        const activeService = this.getActiveService();
+        
+        // Use service-specific method if available
+        if (activeService !== this && typeof activeService.updateFinalChoice === 'function') {
+            return await activeService.updateFinalChoice(userId, choice, registrationData);
+        }
+        
+        // Fallback to original implementation
+        try {
+            console.log('Đang lưu lựa chọn cuối...', {userId, choice});
+            
+            const response = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'cors',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'updateFinal',
+                    userId: userId,
+                    choice: choice,
+                    registrationData: registrationData
+                })
+            });
+            
+            const result = await response.json();
+            console.log('Kết quả cập nhật lựa chọn cuối:', result);
+            return result;
+            
+        } catch (error) {
+            console.error('Lỗi cập nhật lựa chọn cuối:', error);
+            this.updateLocalStorage(userId, { choice, registrationData });
+            return { success: true, fallback: true };
+        }
+    },
+
+    // Lấy thống kê
+    async getStats() {
+        const activeService = this.getActiveService();
+        
+        // Use service-specific method if available
+        if (activeService !== this && typeof activeService.getStats === 'function') {
+            return await activeService.getStats();
+        }
+        
+        // Fallback to original implementation
+        try {
+            const response = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'cors',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'getStats'
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                return result;
+            } else {
+                throw new Error(result.error);
+            }
+            
+        } catch (error) {
+            console.error('Lỗi lấy thống kê:', error);
+            return this.getLocalStats();
+        }
+    },
+
+    // Get all user data (for admin dashboard)
+    async getAllUserData() {
+        const activeService = this.getActiveService();
+        
+        // Use service-specific method if available
+        if (activeService !== this && typeof activeService.getAllUserData === 'function') {
+            return await activeService.getAllUserData();
+        }
+        
+        // Fallback to localStorage
+        try {
+            return {
+                success: true,
+                data: JSON.parse(localStorage.getItem('quizUsers') || '[]'),
+                source: 'localStorage'
+            };
+        } catch (error) {
+            console.error('Error getting local user data:', error);
+            return {
+                success: false,
+                data: [],
+                source: 'localStorage'
+            };
+        }
+    },
     // Lưu dữ liệu người dùng với retry logic
     async saveUserData(userData, retryCount = 0) {
         const maxRetries = 2;
@@ -289,8 +574,16 @@ const Database = {
 
     // Test connection
     async testConnection() {
+        const activeService = this.getActiveService();
+        
+        // Use service-specific method if available
+        if (activeService !== this && typeof activeService.testConnection === 'function') {
+            return await activeService.testConnection();
+        }
+        
+        // Fallback to original Google Sheets implementation
         try {
-            console.log('🔄 Testing Google Apps Script connection...');
+            console.log('🔄 Testing connection...');
             
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
@@ -311,14 +604,14 @@ const Database = {
             console.log('✅ Connection test result:', result);
             
             if (result.success) {
-                console.log('🟢 Google Sheets connection: ONLINE');
+                console.log(`🟢 ${this.getCurrentDatabaseType()} connection: ONLINE`);
                 return true;
             } else {
-                throw new Error('Invalid response from Google Apps Script');
+                throw new Error('Invalid response from service');
             }
             
         } catch (error) {
-            console.warn('🔴 Google Sheets connection: OFFLINE -', error.message);
+            console.warn(`🔴 ${this.getCurrentDatabaseType()} connection: OFFLINE -`, error.message);
             
             // Show user-friendly error message
             if (error.name === 'AbortError') {
@@ -333,13 +626,15 @@ const Database = {
 };
 
 
-// Connection status helper
+// Connection status helper with Firebase and Google Sheets support
 const ConnectionStatus = {
     isOnline: false,
     lastCheck: null,
+    currentDatabaseType: 'localStorage',
     
     async check() {
         this.lastCheck = new Date();
+        this.currentDatabaseType = Database.getCurrentDatabaseType();
         this.isOnline = await Database.testConnection();
         return this.isOnline;
     },
@@ -348,7 +643,8 @@ const ConnectionStatus = {
         return {
             online: this.isOnline,
             lastCheck: this.lastCheck,
-            source: this.isOnline ? 'Google Sheets' : 'localStorage'
+            source: this.isOnline ? this.currentDatabaseType : 'localStorage',
+            databaseType: this.currentDatabaseType
         };
     }
 };
@@ -359,11 +655,15 @@ if (window.location.search.indexOf('student=true') === -1) {
     document.addEventListener('DOMContentLoaded', function() {
         setTimeout(async () => {
             const isOnline = await ConnectionStatus.check();
-            console.log('🔌 Trạng thái kết nối API:', isOnline ? '✅ Hoạt động' : '❌ Offline - Sử dụng localStorage');
+            const dbType = Database.getCurrentDatabaseType();
+            console.log(`🔌 Trạng thái kết nối ${dbType}:`, isOnline ? '✅ Hoạt động' : '❌ Offline - Sử dụng localStorage');
             
             // Trigger custom event for UI updates
             window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { 
-                detail: { online: isOnline }
+                detail: { 
+                    online: isOnline,
+                    databaseType: dbType
+                }
             }));
         }, 1000);
     });

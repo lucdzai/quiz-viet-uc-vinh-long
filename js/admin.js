@@ -1,22 +1,35 @@
-// Admin Dashboard JavaScript
+// Admin Dashboard JavaScript with Firebase and Google Sheets support
 let currentSection = 'dashboard';
 let userData = [];
 let stats = {};
 let isOnline = false;
 let charts = {};
+let realtimeUnsubscribe = null; // Firebase real-time listener unsubscribe function
 
 // Initialize admin dashboard
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🎯 Admin Dashboard Loading...');
     
-    // Listen for connection status updates
+    // Listen for connection status updates (both Firebase and Google Sheets)
     window.addEventListener('connectionStatusUpdate', function(event) {
-        const { online } = event.detail;
-        updateConnectionDisplay(online);
+        const { online, databaseType } = event.detail;
+        updateConnectionDisplay(online, databaseType);
+    });
+
+    // Listen for Firebase connection updates specifically
+    window.addEventListener('firebaseConnectionUpdate', function(event) {
+        const { connected } = event.detail;
+        if (CONFIG.DATABASE_TYPE === 'firebase') {
+            updateConnectionDisplay(connected, 'firebase');
+        }
     });
     
-    // Set up auto-refresh
-    setInterval(refreshDashboard, 30000); // Refresh every 30 seconds
+    // Set up real-time listeners if Firebase is available
+    setupRealtimeListeners();
+    
+    // Set up auto-refresh (reduced frequency if real-time is active)
+    const refreshInterval = realtimeUnsubscribe ? 60000 : 30000; // 60s if real-time, 30s if not
+    setInterval(refreshDashboard, refreshInterval);
     
     // Initial load
     refreshDashboard();
@@ -34,7 +47,56 @@ document.addEventListener('DOMContentLoaded', function() {
     updateSystemInfo();
 });
 
-// Show/hide sections
+// Set up real-time listeners for Firebase
+function setupRealtimeListeners() {
+    // Only set up if Firebase is configured and active
+    if (CONFIG.DATABASE_TYPE === 'firebase' && typeof FirebaseDB !== 'undefined') {
+        console.log('🔥 Setting up Firebase real-time listeners...');
+        
+        try {
+            realtimeUnsubscribe = FirebaseDB.onDataChange((update) => {
+                console.log('🔥 Real-time update received:', update.type);
+                
+                if (update.type === 'users') {
+                    userData = update.data;
+                    if (currentSection === 'data') {
+                        displayUserData(userData);
+                    }
+                    if (currentSection === 'dashboard') {
+                        updateRecentActivity();
+                    }
+                } else if (update.type === 'stats') {
+                    stats = {
+                        success: true,
+                        ...update.data,
+                        source: 'firebase_realtime'
+                    };
+                    if (currentSection === 'dashboard') {
+                        updateStatsDisplay();
+                        updateStatsChart();
+                    }
+                }
+            });
+            
+            console.log('✅ Firebase real-time listeners active');
+            showNotification('🔥 Real-time updates enabled', 'success');
+            
+        } catch (error) {
+            console.error('❌ Failed to set up Firebase real-time listeners:', error);
+        }
+    } else {
+        console.log('ℹ️ Real-time listeners not available (not using Firebase or not configured)');
+    }
+}
+
+// Clean up real-time listeners
+function cleanupRealtimeListeners() {
+    if (realtimeUnsubscribe) {
+        realtimeUnsubscribe();
+        realtimeUnsubscribe = null;
+        console.log('🔥 Firebase real-time listeners cleaned up');
+    }
+}
 function showSection(sectionName) {
     // Hide all sections
     document.querySelectorAll('.admin-section').forEach(section => {
@@ -74,43 +136,54 @@ function showSection(sectionName) {
     }
 }
 
-// Update connection display with enhanced feedback
-function updateConnectionDisplay(isOnline, errorMessage = null) {
+// Update connection display with enhanced feedback for Firebase and Google Sheets
+function updateConnectionDisplay(isOnline, databaseType = null, errorMessage = null) {
     const statusElement = document.getElementById('connection-status');
+    const dbType = databaseType || Database.getCurrentDatabaseType();
     
     if (isOnline) {
-        statusElement.textContent = '✅ Google Sheets - Hoạt động';
+        const serviceNames = {
+            'firebase': 'Firebase Realtime DB',
+            'google_sheets': 'Google Sheets',
+            'localStorage': 'localStorage'
+        };
+        
+        const serviceName = serviceNames[dbType] || dbType;
+        statusElement.textContent = `✅ ${serviceName} - Hoạt động`;
         statusElement.className = 'connection-status status-online';
         isOnline = true;
         
-        // Show success notification only once
-        if (!window.connectionNotificationShown || window.connectionNotificationShown !== 'online') {
-            showNotification('🟢 Kết nối Google Sheets thành công!', 'success');
-            window.connectionNotificationShown = 'online';
+        // Show success notification only once per service
+        const notificationKey = `${dbType}_online`;
+        if (!window.connectionNotificationShown || window.connectionNotificationShown !== notificationKey) {
+            showNotification(`🟢 Kết nối ${serviceName} thành công!`, 'success');
+            window.connectionNotificationShown = notificationKey;
         }
     } else {
         const offlineText = errorMessage 
-            ? `❌ Offline - ${errorMessage.substring(0, 30)}...`
-            : '❌ Offline - Dùng localStorage';
+            ? `❌ ${dbType} Offline - ${errorMessage.substring(0, 30)}...`
+            : `❌ ${dbType} Offline - Dùng localStorage`;
             
         statusElement.textContent = offlineText;
         statusElement.className = 'connection-status status-offline';
         isOnline = false;
         
-        // Show warning notification only once
-        if (!window.connectionNotificationShown || window.connectionNotificationShown !== 'offline') {
+        // Show warning notification only once per service
+        const notificationKey = `${dbType}_offline`;
+        if (!window.connectionNotificationShown || window.connectionNotificationShown !== notificationKey) {
             const warningMsg = errorMessage 
-                ? `🟡 Lỗi kết nối: ${errorMessage}`
-                : '🟡 Chế độ offline - Dữ liệu được lưu locally';
+                ? `🟡 Lỗi kết nối ${dbType}: ${errorMessage}`
+                : `🟡 Chế độ offline - Dữ liệu được lưu locally`;
             showNotification(warningMsg, 'warning');
-            window.connectionNotificationShown = 'offline';
+            window.connectionNotificationShown = notificationKey;
         }
     }
     
     // Update data source indicator
     const dataSourceElement = document.getElementById('data-source');
     if (dataSourceElement) {
-        dataSourceElement.textContent = isOnline ? 'Google Sheets + localStorage' : 'localStorage only';
+        const sourceText = isOnline ? `${dbType} + localStorage` : 'localStorage only';
+        dataSourceElement.textContent = sourceText;
     }
 }
 
@@ -153,25 +226,13 @@ async function refreshDashboard() {
     }
 }
 
-// Load statistics
+// Load statistics with Firebase and Google Sheets support
 async function loadStats() {
     try {
-        // Try Google Sheets first
-        if (typeof GoogleSheets !== 'undefined') {
-            console.log('📊 Loading stats from Google Sheets...');
-            const result = await GoogleSheets.getStats();
-            
-            if (result.success) {
-                stats = result;
-                console.log('✅ Stats loaded from Google Sheets:', stats);
-                return;
-            }
-        }
-        
-        // Fallback to Database.getStats (which includes localStorage fallback)
-        console.log('📊 Loading stats from fallback...');
+        // Get stats from active database service
+        console.log(`📊 Loading stats from ${Database.getCurrentDatabaseType()}...`);
         stats = await Database.getStats();
-        console.log('📊 Stats loaded from fallback:', stats);
+        console.log('✅ Stats loaded:', stats);
         
     } catch (error) {
         console.error('❌ Error loading stats:', error);
@@ -336,39 +397,30 @@ function loadDashboard() {
     updateStatsChart();
 }
 
-// Load user data
+// Load user data with Firebase and Google Sheets support
 async function loadUserData() {
     showLoading('Đang tải dữ liệu người dùng...');
     
     try {
-        // Try to get from Google Sheets first
-        if (typeof GoogleSheets !== 'undefined') {
-            console.log('🔄 Attempting to load data from Google Sheets...');
-            const result = await GoogleSheets.getAllUserData();
+        console.log(`🔄 Loading user data from ${Database.getCurrentDatabaseType()}...`);
+        const result = await Database.getAllUserData();
+        
+        if (result.success && result.data) {
+            userData = result.data;
+            console.log(`✅ Loaded ${userData.length} records from ${result.source}`);
             
-            if (result.success && result.data) {
-                userData = result.data;
-                console.log(`✅ Loaded ${userData.length} records from ${result.source}`);
-                
-                // Show data source in UI
-                updateDataSourceIndicator(result.source);
-                
-                displayUserData(userData);
-                hideLoading();
-                return;
+            // Show data source in UI
+            updateDataSourceIndicator(result.source);
+            
+            displayUserData(userData);
+            hideLoading();
+            
+            if (userData.length === 0) {
+                showNotification('ℹ️ Chưa có dữ liệu nào. Dữ liệu từ học sinh sẽ hiển thị khi họ làm quiz.', 'info');
             }
-        }
-        
-        // Fallback to localStorage
-        console.log('📱 Falling back to localStorage...');
-        userData = JSON.parse(localStorage.getItem('quizUsers') || '[]');
-        updateDataSourceIndicator('localStorage');
-        
-        displayUserData(userData);
-        hideLoading();
-        
-        if (userData.length === 0) {
-            showNotification('ℹ️ Chưa có dữ liệu nào. Dữ liệu từ học sinh sẽ hiển thị khi họ làm quiz.', 'info');
+            return;
+        } else {
+            throw new Error('Failed to load user data');
         }
         
     } catch (error) {
