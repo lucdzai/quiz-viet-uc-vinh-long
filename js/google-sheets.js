@@ -18,67 +18,113 @@ class GoogleSheetsIntegration {
     }
 
     /**
-     * Test connection to Google Sheets
+     * Test connection to Google Sheets with enhanced CORS handling
      */
     async testConnection() {
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
 
             const response = await fetch(this.scriptUrl, {
                 method: 'GET',
                 mode: 'cors',
-                signal: controller.signal
+                headers: {
+                    'Accept': 'application/json',
+                },
+                signal: controller.signal,
+                credentials: 'omit' // Avoid credentials issues with CORS
             });
 
             clearTimeout(timeoutId);
 
             if (response.ok) {
-                const result = await response.json();
+                let result;
+                try {
+                    result = await response.json();
+                } catch (parseError) {
+                    // If we can't parse JSON, but got a 200, assume connection works
+                    console.warn('⚠️ Got response but could not parse JSON:', parseError.message);
+                    this.isOnline = true;
+                    console.log('✅ Google Sheets connection successful (non-JSON response)');
+                    return true;
+                }
+                
                 this.isOnline = result.success === true;
-                console.log('✅ Google Sheets connection successful');
-                return true;
+                if (this.isOnline) {
+                    console.log('✅ Google Sheets connection successful');
+                } else {
+                    console.warn('⚠️ Google Sheets responded but reported not successful');
+                }
+                return this.isOnline;
             } else {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
         } catch (error) {
             console.warn('⚠️ Google Sheets connection failed:', error.message);
             this.isOnline = false;
+            
+            // Provide specific error guidance
+            if (error.name === 'AbortError') {
+                console.warn('💡 Connection timeout - check network or script responsiveness');
+            } else if (error.message.includes('Failed to fetch') || error.message.includes('CORS')) {
+                console.warn('💡 CORS or network error - check script deployment and CORS headers');
+            } else if (error.message.includes('404')) {
+                console.warn('💡 Script URL not found - verify Google Apps Script deployment URL');
+            }
+            
             return false;
         }
     }
 
     /**
-     * Send data to Google Sheets with retry logic
+     * Send data to Google Sheets with retry logic and improved CORS handling
      */
     async sendData(action, data, retryCount = 0) {
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
+            // Enhanced headers for better CORS support
+            const headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            };
+
             const response = await fetch(this.scriptUrl, {
                 method: 'POST',
                 mode: 'cors',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: headers,
                 body: JSON.stringify({
                     action: action,
                     ...data
                 }),
-                signal: controller.signal
+                signal: controller.signal,
+                credentials: 'omit' // Avoid credentials issues with CORS
             });
 
             clearTimeout(timeoutId);
 
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                const errorText = await response.text().catch(() => 'Unknown error');
+                throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
             }
 
-            const result = await response.json();
+            let result;
+            try {
+                result = await response.json();
+            } catch (parseError) {
+                throw new Error(`Invalid JSON response: ${parseError.message}`);
+            }
             
             if (result.success) {
                 this.isOnline = true;
+                // Trigger connection status update
+                window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { 
+                    detail: { 
+                        online: true,
+                        databaseType: 'google_sheets'
+                    }
+                }));
                 return result;
             } else {
                 throw new Error(result.error || 'Unknown error from Google Sheets');
@@ -87,9 +133,21 @@ class GoogleSheetsIntegration {
         } catch (error) {
             console.warn(`❌ Google Sheets error (attempt ${retryCount + 1}):`, error.message);
             
-            // Retry logic
+            // Trigger connection status update for errors
+            window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { 
+                detail: { 
+                    online: false,
+                    databaseType: 'google_sheets',
+                    error: error.message
+                }
+            }));
+            
+            // Enhanced retry logic for different error types
             if (retryCount < this.retryAttempts && !error.name === 'AbortError') {
-                await this.delay(this.retryDelay * (retryCount + 1));
+                // Exponential backoff with jitter
+                const delay = this.retryDelay * Math.pow(2, retryCount) + Math.random() * 1000;
+                console.log(`🔄 Retrying in ${delay}ms...`);
+                await this.delay(delay);
                 return this.sendData(action, data, retryCount + 1);
             }
             

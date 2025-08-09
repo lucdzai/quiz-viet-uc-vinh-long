@@ -46,7 +46,10 @@ const CONFIG = {
 const Database = {
     // Get the active database service based on configuration
     getActiveService() {
-        if (CONFIG.DATABASE_TYPE === 'firebase' && typeof FirebaseDB !== 'undefined') {
+        // Prioritize FirebaseFallback if available
+        if (typeof window.FirebaseFallback !== 'undefined') {
+            return window.FirebaseFallback;
+        } else if (CONFIG.DATABASE_TYPE === 'firebase' && typeof FirebaseDB !== 'undefined') {
             return FirebaseDB;
         } else if (CONFIG.DATABASE_TYPE === 'google_sheets' && typeof GoogleSheets !== 'undefined') {
             return GoogleSheets;
@@ -71,7 +74,11 @@ const Database = {
 
     // Get current database type
     getCurrentDatabaseType() {
-        if (this.isFirebaseAvailable() && CONFIG.DATABASE_TYPE === 'firebase') {
+        // Check FirebaseFallback first
+        if (typeof window.FirebaseFallback !== 'undefined') {
+            const status = window.FirebaseFallback.getConnectionStatus();
+            return status.source; // Will be 'firebase' or 'localStorage'
+        } else if (this.isFirebaseAvailable() && CONFIG.DATABASE_TYPE === 'firebase') {
             return 'firebase';
         } else if (this.isGoogleSheetsAvailable() && CONFIG.DATABASE_TYPE === 'google_sheets') {
             return 'google_sheets';

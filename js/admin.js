@@ -12,8 +12,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Listen for connection status updates (both Firebase and Google Sheets)
     window.addEventListener('connectionStatusUpdate', function(event) {
-        const { online, databaseType } = event.detail;
-        updateConnectionDisplay(online, databaseType);
+        const { online, databaseType, error } = event.detail;
+        updateConnectionDisplay(online, databaseType, error);
     });
 
     // Listen for Firebase connection updates specifically
@@ -49,56 +49,58 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Set up real-time listeners for Firebase
 function setupRealtimeListeners() {
-    // Only set up if Firebase is configured and active
-    if (CONFIG.DATABASE_TYPE === 'firebase') {
-        console.log('🔥 Setting up Firebase real-time listeners...');
-        
-        // Check if FirebaseDB is available, with retry logic
-        const trySetupListeners = (attempts = 0) => {
-            if (typeof FirebaseDB !== 'undefined' && FirebaseDB.database) {
-                try {
-                    realtimeUnsubscribe = FirebaseDB.onDataChange((update) => {
-                        console.log('🔥 Real-time update received:', update.type);
-                        
-                        if (update.type === 'users') {
-                            userData = update.data;
-                            if (currentSection === 'data') {
-                                displayUserData(userData);
-                            }
-                            if (currentSection === 'dashboard') {
-                                updateRecentActivity();
-                            }
-                        } else if (update.type === 'stats') {
-                            stats = {
-                                success: true,
-                                ...update.data,
-                                source: 'firebase_realtime'
-                            };
-                            if (currentSection === 'dashboard') {
-                                updateStatsDisplay();
-                                updateStatsChart();
-                            }
-                        }
-                    });
+    console.log('🔥 Setting up real-time listeners...');
+    
+    // Check if FirebaseFallback is available, with retry logic
+    const trySetupListeners = (attempts = 0) => {
+        if (typeof window.FirebaseFallback !== 'undefined' && window.FirebaseFallback.onDataChange) {
+            try {
+                realtimeUnsubscribe = window.FirebaseFallback.onDataChange((update) => {
+                    console.log('🔥 Real-time update received:', update.type);
                     
+                    if (update.type === 'users') {
+                        userData = update.data;
+                        if (currentSection === 'data') {
+                            displayUserData(userData);
+                        }
+                        if (currentSection === 'dashboard') {
+                            updateRecentActivity();
+                        }
+                    } else if (update.type === 'stats') {
+                        stats = {
+                            success: true,
+                            ...update.data,
+                            source: 'firebase_realtime'
+                        };
+                        if (currentSection === 'dashboard') {
+                            updateStatsDisplay();
+                            updateStatsChart();
+                        }
+                    }
+                });
+                
+                const status = window.FirebaseFallback.getConnectionStatus();
+                if (status.firebaseAvailable) {
                     console.log('✅ Firebase real-time listeners active');
                     showNotification('🔥 Real-time updates enabled', 'success');
-                    
-                } catch (error) {
-                    console.error('❌ Failed to set up Firebase real-time listeners:', error);
+                } else {
+                    console.log('ℹ️ Real-time listeners not available (Firebase not accessible)');
+                    showNotification('ℹ️ Chế độ offline - sử dụng polling', 'info');
                 }
-            } else if (attempts < 5) {
-                // Retry after a short delay
-                setTimeout(() => trySetupListeners(attempts + 1), 500);
-            } else {
-                console.log('ℹ️ Real-time listeners not available (FirebaseDB not ready after 5 attempts)');
+                
+            } catch (error) {
+                console.error('❌ Failed to set up Firebase real-time listeners:', error);
             }
-        };
-        
-        trySetupListeners();
-    } else {
-        console.log('ℹ️ Real-time listeners not available (not using Firebase or not configured)');
-    }
+        } else if (attempts < 20) {
+            // Retry after a short delay
+            setTimeout(() => trySetupListeners(attempts + 1), 250);
+        } else {
+            console.log('ℹ️ Real-time listeners not available (FirebaseFallback not ready after 20 attempts)');
+            showNotification('ℹ️ Mode polling (tidak real-time)', 'info');
+        }
+    };
+    
+    trySetupListeners();
 }
 
 // Clean up real-time listeners
@@ -172,20 +174,46 @@ function updateConnectionDisplay(isOnline, databaseType = null, errorMessage = n
             window.connectionNotificationShown = notificationKey;
         }
     } else {
-        const offlineText = errorMessage 
-            ? `❌ ${dbType} Offline - ${errorMessage.substring(0, 30)}...`
-            : `❌ ${dbType} Offline - Dùng localStorage`;
+        const serviceNames = {
+            'firebase': 'Firebase',
+            'google_sheets': 'Google Sheets',
+            'localStorage': 'localStorage'
+        };
+        
+        const serviceName = serviceNames[dbType] || dbType;
+        
+        let offlineText;
+        if (errorMessage) {
+            if (errorMessage.includes('CORS') || errorMessage.includes('Failed to fetch')) {
+                offlineText = `❌ ${serviceName} - CORS/Network Error`;
+            } else if (errorMessage.includes('timeout') || errorMessage.includes('AbortError')) {
+                offlineText = `❌ ${serviceName} - Timeout`;
+            } else {
+                offlineText = `❌ ${serviceName} - ${errorMessage.substring(0, 20)}...`;
+            }
+        } else {
+            offlineText = `❌ ${serviceName} - Offline`;
+        }
             
         statusElement.textContent = offlineText;
         statusElement.className = 'connection-status status-offline';
         isOnline = false;
         
-        // Show warning notification only once per service
-        const notificationKey = `${dbType}_offline`;
+        // Show warning notification only once per service with error details
+        const notificationKey = `${dbType}_offline_${errorMessage ? errorMessage.substring(0, 10) : 'generic'}`;
         if (!window.connectionNotificationShown || window.connectionNotificationShown !== notificationKey) {
-            const warningMsg = errorMessage 
-                ? `🟡 Lỗi kết nối ${dbType}: ${errorMessage}`
-                : `🟡 Chế độ offline - Dữ liệu được lưu locally`;
+            let warningMsg;
+            if (errorMessage) {
+                if (errorMessage.includes('CORS') || errorMessage.includes('Failed to fetch')) {
+                    warningMsg = `🟡 CORS Error: Kiểm tra cấu hình Google Apps Script`;
+                } else if (errorMessage.includes('timeout')) {
+                    warningMsg = `🟡 Timeout: Server phản hồi chậm`;
+                } else {
+                    warningMsg = `🟡 Lỗi ${serviceName}: ${errorMessage.substring(0, 30)}`;
+                }
+            } else {
+                warningMsg = `🟡 Chế độ offline - Dữ liệu được lưu locally`;
+            }
             showNotification(warningMsg, 'warning');
             window.connectionNotificationShown = notificationKey;
         }
@@ -827,26 +855,59 @@ async function checkConnection() {
     
     try {
         let online = false;
+        let dbType = Database.getCurrentDatabaseType();
+        let errorDetails = null;
         
-        // Use GoogleSheets if available
-        if (typeof GoogleSheets !== 'undefined') {
+        console.log(`🔄 Testing connection to ${dbType}...`);
+        
+        if (dbType === 'firebase' && typeof window.FirebaseFallback !== 'undefined') {
+            // Test Firebase fallback connection
+            const healthCheck = await window.FirebaseFallback.healthCheck();
+            online = healthCheck.connected;
+            errorDetails = healthCheck.connected ? null : healthCheck.error || 'Firebase connection failed';
+            
+            if (online) {
+                console.log(`✅ Firebase fallback health check: ${healthCheck.responseTime}ms`);
+            } else {
+                console.warn(`❌ Firebase fallback health check failed: ${healthCheck.status}`);
+            }
+        } else if (dbType === 'firebase' && typeof FirebaseDB !== 'undefined') {
+            // Test Firebase connection
+            const healthCheck = await FirebaseDB.healthCheck();
+            online = healthCheck.connected;
+            errorDetails = healthCheck.connected ? null : 'Firebase connection failed';
+            
+            if (online) {
+                console.log(`✅ Firebase health check: ${healthCheck.responseTime}ms`);
+            }
+        } else if (dbType === 'google_sheets' && typeof GoogleSheets !== 'undefined') {
+            // Test Google Sheets connection
             const healthCheck = await GoogleSheets.healthCheck();
             online = healthCheck.connected;
+            errorDetails = healthCheck.connected ? null : 'Google Sheets connection failed';
             
             if (online) {
                 console.log(`✅ Google Sheets health check: ${healthCheck.responseTime}ms`);
+            } else {
+                console.warn(`❌ Google Sheets health check failed: ${healthCheck.status}`);
             }
         } else {
             // Fallback to Database.testConnection
-            online = await Database.testConnection();
+            try {
+                online = await Database.testConnection();
+                errorDetails = online ? null : 'Database test connection failed';
+            } catch (error) {
+                online = false;
+                errorDetails = error.message;
+            }
         }
         
-        updateConnectionDisplay(online);
+        updateConnectionDisplay(online, dbType, errorDetails);
         return online;
         
     } catch (error) {
         console.error('Connection check failed:', error);
-        updateConnectionDisplay(false, error.message);
+        updateConnectionDisplay(false, Database.getCurrentDatabaseType(), error.message);
         return false;
     } finally {
         if (refreshBtn) {
