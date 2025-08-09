@@ -50,40 +50,52 @@ document.addEventListener('DOMContentLoaded', function() {
 // Set up real-time listeners for Firebase
 function setupRealtimeListeners() {
     // Only set up if Firebase is configured and active
-    if (CONFIG.DATABASE_TYPE === 'firebase' && typeof FirebaseDB !== 'undefined') {
+    if (CONFIG.DATABASE_TYPE === 'firebase') {
         console.log('🔥 Setting up Firebase real-time listeners...');
         
-        try {
-            realtimeUnsubscribe = FirebaseDB.onDataChange((update) => {
-                console.log('🔥 Real-time update received:', update.type);
-                
-                if (update.type === 'users') {
-                    userData = update.data;
-                    if (currentSection === 'data') {
-                        displayUserData(userData);
-                    }
-                    if (currentSection === 'dashboard') {
-                        updateRecentActivity();
-                    }
-                } else if (update.type === 'stats') {
-                    stats = {
-                        success: true,
-                        ...update.data,
-                        source: 'firebase_realtime'
-                    };
-                    if (currentSection === 'dashboard') {
-                        updateStatsDisplay();
-                        updateStatsChart();
-                    }
+        // Check if FirebaseDB is available, with retry logic
+        const trySetupListeners = (attempts = 0) => {
+            if (typeof FirebaseDB !== 'undefined' && FirebaseDB.database) {
+                try {
+                    realtimeUnsubscribe = FirebaseDB.onDataChange((update) => {
+                        console.log('🔥 Real-time update received:', update.type);
+                        
+                        if (update.type === 'users') {
+                            userData = update.data;
+                            if (currentSection === 'data') {
+                                displayUserData(userData);
+                            }
+                            if (currentSection === 'dashboard') {
+                                updateRecentActivity();
+                            }
+                        } else if (update.type === 'stats') {
+                            stats = {
+                                success: true,
+                                ...update.data,
+                                source: 'firebase_realtime'
+                            };
+                            if (currentSection === 'dashboard') {
+                                updateStatsDisplay();
+                                updateStatsChart();
+                            }
+                        }
+                    });
+                    
+                    console.log('✅ Firebase real-time listeners active');
+                    showNotification('🔥 Real-time updates enabled', 'success');
+                    
+                } catch (error) {
+                    console.error('❌ Failed to set up Firebase real-time listeners:', error);
                 }
-            });
-            
-            console.log('✅ Firebase real-time listeners active');
-            showNotification('🔥 Real-time updates enabled', 'success');
-            
-        } catch (error) {
-            console.error('❌ Failed to set up Firebase real-time listeners:', error);
-        }
+            } else if (attempts < 5) {
+                // Retry after a short delay
+                setTimeout(() => trySetupListeners(attempts + 1), 500);
+            } else {
+                console.log('ℹ️ Real-time listeners not available (FirebaseDB not ready after 5 attempts)');
+            }
+        };
+        
+        trySetupListeners();
     } else {
         console.log('ℹ️ Real-time listeners not available (not using Firebase or not configured)');
     }
