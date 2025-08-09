@@ -234,6 +234,103 @@
             100% { transform: rotate(360deg); }
         }
         
+        /* Clear Data Dialog Styles */
+        .clear-data-dialog {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10001;
+        }
+        
+        .clear-data-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        .clear-data-title {
+            color: #e74c3c;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+        
+        .clear-data-warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+        }
+        
+        .clear-data-list {
+            text-align: left;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .clear-data-list h4 {
+            margin: 0 0 0.5rem 0;
+            color: #2c3e50;
+        }
+        
+        .clear-data-list ul {
+            margin: 0;
+            padding-left: 1.5rem;
+        }
+        
+        .clear-data-list li {
+            margin: 0.3rem 0;
+        }
+        
+        .clear-data-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 1.5rem;
+        }
+        
+        .clear-data-btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .clear-data-confirm {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .clear-data-confirm:hover {
+            background: #c0392b;
+        }
+        
+        .clear-data-cancel {
+            background: #95a5a6;
+            color: white;
+        }
+        
+        .clear-data-cancel:hover {
+            background: #7f8c8d;
+        }
+        
         @media (max-width: 768px) {
             .admin-nav {
                 flex-direction: column;
@@ -241,6 +338,7 @@
             
             .nav-btn {
                 width: 100%;
+                margin-left: 0 !important;
             }
             
             .stats-grid {
@@ -249,6 +347,10 @@
             
             .export-controls,
             .filter-controls {
+                flex-direction: column;
+            }
+            
+            .clear-data-actions {
                 flex-direction: column;
             }
         }
@@ -273,6 +375,7 @@
             <button class="nav-btn" onclick="showSection('analytics')">📈 Phân tích</button>
             <button class="nav-btn" onclick="showSection('export')">📤 Xuất dữ liệu</button>
             <button class="nav-btn" onclick="showSection('settings')">⚙️ Cài đặt</button>
+            <button class="nav-btn" onclick="showClearDataDialog()" style="background: #e74c3c; margin-left: auto;">🗑️ Xóa dữ liệu</button>
         </nav>
 
         <!-- Dashboard Section -->
@@ -425,9 +528,12 @@
             
             <div id="data-management">
                 <h3>🗄️ Quản lý dữ liệu</h3>
-                <button class="nav-btn" onclick="clearLocalData()" style="background: #e74c3c;">🗑️ Xóa dữ liệu local</button>
+                <button class="nav-btn" onclick="showClearDataDialog()" style="background: #e74c3c;">🗑️ Xóa tất cả dữ liệu</button>
                 <button class="nav-btn" onclick="syncData()">🔄 Đồng bộ dữ liệu</button>
                 <button class="nav-btn" onclick="backupData()">💾 Sao lưu dữ liệu</button>
+                <p style="font-size: 0.85rem; color: #666; margin-top: 0.5rem;">
+                    💡 <strong>Tip:</strong> Nút "Xóa dữ liệu" cũng có sẵn ở thanh điều hướng phía trên để truy cập nhanh.
+                </p>
             </div>
             
             <div id="system-info">
@@ -444,6 +550,40 @@
         <div class="loading-content">
             <div class="spinner"></div>
             <p id="loading-text">Đang xử lý...</p>
+        </div>
+    </div>
+
+    <!-- Clear Data Confirmation Dialog -->
+    <div class="clear-data-dialog" id="clear-data-dialog">
+        <div class="clear-data-content">
+            <div class="clear-data-title">⚠️ Xóa tất cả dữ liệu</div>
+            
+            <div class="clear-data-warning">
+                <strong>Cảnh báo:</strong> Hành động này sẽ xóa toàn bộ dữ liệu được lưu trữ locally và không thể hoàn tác!
+            </div>
+            
+            <div class="clear-data-list">
+                <h4>Các dữ liệu sẽ bị xóa:</h4>
+                <ul>
+                    <li>🗄️ LocalStorage (dữ liệu quiz, thống kê)</li>
+                    <li>📋 SessionStorage (dữ liệu phiên làm việc)</li>
+                    <li>🔥 IndexedDB (Firebase local cache)</li>
+                    <li>🌐 Browser Cache (nếu có thể)</li>
+                </ul>
+            </div>
+            
+            <p style="margin: 1rem 0; font-size: 0.9rem; color: #666;">
+                Trang sẽ được tải lại sau khi xóa dữ liệu để đảm bảo ứng dụng hoạt động bình thường.
+            </p>
+            
+            <div class="clear-data-actions">
+                <button class="clear-data-btn clear-data-confirm" onclick="confirmClearAllData()">
+                    🗑️ Xác nhận xóa
+                </button>
+                <button class="clear-data-btn clear-data-cancel" onclick="hideClearDataDialog()">
+                    ❌ Hủy bỏ
+                </button>
+            </div>
         </div>
     </div>
 
