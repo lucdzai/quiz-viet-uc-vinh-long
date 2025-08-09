@@ -524,14 +524,12 @@ class SyncService {
 }
 
 // Initialize sync service
-let SyncService;
 if (typeof window !== 'undefined' && typeof window.SyncService === 'undefined') {
     // Wait a bit for other services to initialize
     document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
             if (typeof window.SyncService === 'undefined') {
-                SyncService = new SyncService();
-                window.SyncService = SyncService;
+                window.SyncService = new SyncService();
                 console.log('🔄 SyncService initialized and available globally');
             }
         }, 1000);
