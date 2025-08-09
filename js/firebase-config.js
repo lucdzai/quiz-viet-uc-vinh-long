@@ -173,7 +173,22 @@ window.FirebaseConfig = {
 document.addEventListener('DOMContentLoaded', function() {
     if (isFirebaseConfigured()) {
         console.log('🔥 Auto-initializing Firebase...');
-        initializeFirebase();
+        setTimeout(() => {
+            // Delay initialization to ensure Firebase SDK is loaded
+            if (typeof firebase !== 'undefined') {
+                initializeFirebase();
+            } else {
+                console.warn('⚠️ Firebase SDK not available - check network or ad blockers');
+                // Trigger fallback mode event
+                window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { 
+                    detail: { 
+                        online: false,
+                        databaseType: 'localStorage',
+                        error: 'Firebase SDK not loaded'
+                    }
+                }));
+            }
+        }, 100);
     } else {
         console.log('⚠️ Firebase not configured. Update FIREBASE_CONFIG in firebase-config.js');
     }

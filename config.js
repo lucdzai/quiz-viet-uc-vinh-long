@@ -46,15 +46,11 @@ const CONFIG = {
 const Database = {
     // Get the active database service based on configuration
     getActiveService() {
-        // Prioritize FirebaseFallback if available
+        // Prioritize FirebaseFallback as the unified interface
         if (typeof window.FirebaseFallback !== 'undefined') {
             return window.FirebaseFallback;
-        } else if (CONFIG.DATABASE_TYPE === 'firebase' && typeof FirebaseDB !== 'undefined') {
-            return FirebaseDB;
-        } else if (CONFIG.DATABASE_TYPE === 'google_sheets' && typeof GoogleSheets !== 'undefined') {
-            return GoogleSheets;
         } else {
-            // Fallback to built-in methods
+            // Fallback to built-in methods if FirebaseFallback not available
             return this;
         }
     },
@@ -74,13 +70,13 @@ const Database = {
 
     // Get current database type
     getCurrentDatabaseType() {
-        // Check FirebaseFallback first
+        // Check FirebaseFallback first for unified status
         if (typeof window.FirebaseFallback !== 'undefined') {
             const status = window.FirebaseFallback.getConnectionStatus();
             return status.source; // Will be 'firebase' or 'localStorage'
-        } else if (this.isFirebaseAvailable() && CONFIG.DATABASE_TYPE === 'firebase') {
+        } else if (CONFIG.DATABASE_TYPE === 'firebase' && this.isFirebaseAvailable()) {
             return 'firebase';
-        } else if (this.isGoogleSheetsAvailable() && CONFIG.DATABASE_TYPE === 'google_sheets') {
+        } else if (CONFIG.DATABASE_TYPE === 'google_sheets' && this.isGoogleSheetsAvailable()) {
             return 'google_sheets';
         } else {
             return 'localStorage';
@@ -410,48 +406,58 @@ const Database = {
         // Use service-specific method if available
         if (activeService !== this && typeof activeService.testConnection === 'function') {
             return await activeService.testConnection();
+        } else if (activeService !== this && typeof activeService.healthCheck === 'function') {
+            // Use healthCheck if testConnection not available
+            const health = await activeService.healthCheck();
+            return health.connected;
         }
         
-        // Fallback to original Google Sheets implementation
-        try {
-            console.log('🔄 Testing connection...');
-            
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
-            
-            const response = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
-                method: 'GET',
-                mode: 'cors',
-                signal: controller.signal
-            });
-            
-            clearTimeout(timeoutId);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        // Only test Google Sheets if we're explicitly using it and Firebase is not available
+        if (CONFIG.DATABASE_TYPE === 'google_sheets' && !this.isFirebaseAvailable()) {
+            try {
+                console.log('🔄 Testing Google Sheets connection...');
+                
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+                
+                const response = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
+                    method: 'GET',
+                    mode: 'cors',
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                console.log('✅ Google Sheets connection test result:', result);
+                
+                if (result.success) {
+                    console.log(`🟢 google_sheets connection: ONLINE`);
+                    return true;
+                } else {
+                    throw new Error('Invalid response from Google Sheets service');
+                }
+                
+            } catch (error) {
+                console.warn(`🔴 google_sheets connection: OFFLINE -`, error.message);
+                
+                // Show user-friendly error message
+                if (error.name === 'AbortError') {
+                    console.warn('⏱️ Google Sheets timeout - using localStorage fallback');
+                } else if (error.message.includes('Failed to fetch')) {
+                    console.warn('🌐 Network error or CORS issue - using localStorage fallback');
+                }
+                
+                return false;
             }
-            
-            const result = await response.json();
-            console.log('✅ Connection test result:', result);
-            
-            if (result.success) {
-                console.log(`🟢 ${this.getCurrentDatabaseType()} connection: ONLINE`);
-                return true;
-            } else {
-                throw new Error('Invalid response from service');
-            }
-            
-        } catch (error) {
-            console.warn(`🔴 ${this.getCurrentDatabaseType()} connection: OFFLINE -`, error.message);
-            
-            // Show user-friendly error message
-            if (error.name === 'AbortError') {
-                console.warn('⏱️ Connection timeout - using localStorage fallback');
-            } else if (error.message.includes('Failed to fetch')) {
-                console.warn('🌐 Network error or CORS issue - using localStorage fallback');
-            }
-            
-            return false;
+        } else {
+            // For Firebase or other modes, don't test Google Sheets unnecessarily
+            console.log(`🔄 Testing ${this.getCurrentDatabaseType()} connection...`);
+            return false; // Will fall back to localStorage
         }
     }
 };

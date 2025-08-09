@@ -11,45 +11,40 @@ class FirebaseDatabase {
         this.isOnline = false;
         this.listeners = new Map();
         
-        // Initialize Firebase connection
-        this.initialize();
+        // Use the centralized Firebase initialization from firebase-config.js
+        this.setupConnection();
     }
 
     /**
-     * Initialize Firebase database connection
+     * Setup connection using centralized Firebase configuration
      */
-    async initialize() {
-        try {
-            // Wait for Firebase config to be loaded
-            if (typeof FirebaseConfig === 'undefined') {
-                console.warn('⚠️ FirebaseConfig not available. Make sure firebase-config.js is loaded first.');
-                return false;
-            }
-
-            // Initialize Firebase if not already done
-            if (!FirebaseConfig.getConnectionStatus().initialized) {
-                FirebaseConfig.initializeFirebase();
-            }
-
-            this.database = FirebaseConfig.getDatabase();
+    setupConnection() {
+        // Listen for Firebase initialization from firebase-config.js
+        window.addEventListener('firebaseConnectionUpdate', (event) => {
+            const { connected } = event.detail;
+            this.isOnline = connected;
             
-            if (this.database) {
-                this.isOnline = true;
-                console.log('✅ Firebase database initialized successfully');
-                
-                // Set up connection monitoring
-                this.setupConnectionMonitoring();
-                
-                return true;
+            if (connected && typeof FirebaseConfig !== 'undefined') {
+                this.database = FirebaseConfig.getDatabase();
+                console.log('✅ Firebase database connected via firebase-config.js');
             } else {
-                throw new Error('Failed to get Firebase database instance');
+                this.database = null;
+                console.log('❌ Firebase database disconnected');
             }
-            
-        } catch (error) {
-            console.error('❌ Firebase database initialization failed:', error);
-            this.isOnline = false;
-            return false;
-        }
+        });
+
+        // Check if Firebase is already initialized
+        setTimeout(() => {
+            if (typeof FirebaseConfig !== 'undefined') {
+                const status = FirebaseConfig.getConnectionStatus();
+                if (status.initialized && status.database) {
+                    this.database = FirebaseConfig.getDatabase();
+                    this.isOnline = true;
+                    console.log('✅ Firebase database already available');
+                    this.setupConnectionMonitoring();
+                }
+            }
+        }, 150);
     }
 
     /**
@@ -549,19 +544,30 @@ class FirebaseDatabase {
     }
 }
 
-// Initialize Firebase Database instance if Firebase is configured
+// Initialize Firebase Database instance when Firebase is ready
 let FirebaseDB;
 if (typeof window !== 'undefined') {
+    // Wait for firebase-config.js to initialize Firebase first
+    window.addEventListener('firebaseConnectionUpdate', function(event) {
+        const { connected } = event.detail;
+        if (connected && typeof FirebaseConfig !== 'undefined' && !FirebaseDB) {
+            FirebaseDB = new FirebaseDatabase();
+            window.FirebaseDB = FirebaseDB;
+            console.log('🔥 FirebaseDB instance created after Firebase connection established');
+        }
+    });
+    
+    // Also check if Firebase is already available
     document.addEventListener('DOMContentLoaded', function() {
-        // Wait a bit for firebase-config.js to load
         setTimeout(() => {
-            if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.isFirebaseConfigured()) {
-                FirebaseDB = new FirebaseDatabase();
-                window.FirebaseDB = FirebaseDB;
-                console.log('🔥 FirebaseDB instance created and available globally');
-            } else {
-                console.log('⚠️ Firebase not configured, FirebaseDB not initialized');
+            if (typeof FirebaseConfig !== 'undefined') {
+                const status = FirebaseConfig.getConnectionStatus();
+                if (status.initialized && !FirebaseDB) {
+                    FirebaseDB = new FirebaseDatabase();
+                    window.FirebaseDB = FirebaseDB;
+                    console.log('🔥 FirebaseDB instance created with existing Firebase connection');
+                }
             }
-        }, 100);
+        }, 200);
     });
 }

@@ -6,6 +6,13 @@
  * better error handling and user feedback.
  */
 
+/**
+ * Firebase Fallback Module
+ * 
+ * This module provides a unified interface for Firebase and localStorage operations.
+ * It automatically detects Firebase availability and falls back gracefully.
+ */
+
 class FirebaseFallbackClass {
     constructor() {
         this.isFirebaseAvailable = false;
@@ -13,121 +20,44 @@ class FirebaseFallbackClass {
         this.listeners = new Map();
         this.connectionStatus = 'checking';
         
-        this.initialize();
+        // Don't initialize immediately - let firebase-config.js handle Firebase initialization
+        this.setupStatusMonitoring();
     }
 
-    async initialize() {
-        console.log('🔥 Initializing Firebase with fallback support...');
-        
-        // Check if Firebase CDN was blocked
-        if (typeof firebase === 'undefined') {
-            console.warn('⚠️ Firebase SDK not loaded - likely blocked by ad blocker or network');
-            this.connectionStatus = 'fallback';
-            this.setupLocalStorageMode();
-            return;
-        }
-        
-        try {
-            console.log('✅ Firebase SDK detected');
-            await this.initializeFirebase();
-        } catch (error) {
-            console.warn('⚠️ Firebase initialization failed, using localStorage mode:', error.message);
-            this.connectionStatus = 'fallback';
-            this.setupLocalStorageMode();
-        }
-    }
-
-    async initializeFirebase() {
-        try {
-            // Use existing Firebase configuration
-            if (typeof FirebaseConfig === 'undefined') {
-                throw new Error('FirebaseConfig not available');
-            }
-
-            const config = FirebaseConfig.FIREBASE_CONFIG;
-            
-            // Initialize Firebase if not already done
-            let app;
-            if (firebase.apps.length > 0) {
-                app = firebase.app();
-            } else {
-                app = firebase.initializeApp(config);
-            }
-
-            this.database = firebase.database();
-            
-            // Test connection
-            await this.testFirebaseConnection();
-            
-            this.isFirebaseAvailable = true;
-            this.connectionStatus = 'online';
-            this.setupFirebaseConnectionMonitoring();
-            
-            console.log('✅ Firebase initialized successfully with fallback support');
-            
-            // Notify UI
-            this.notifyConnectionChange(true, 'firebase');
-            
-        } catch (error) {
-            console.error('❌ Firebase initialization failed:', error);
-            throw error;
-        }
-    }
-
-    async testFirebaseConnection() {
-        if (!this.database) {
-            throw new Error('Database not initialized');
-        }
-
-        try {
-            // Test with a simple read operation
-            const snapshot = await this.database.ref('.info/serverTimeOffset').once('value');
-            return snapshot.exists();
-        } catch (error) {
-            throw new Error(`Firebase connection test failed: ${error.message}`);
-        }
-    }
-
-    setupFirebaseConnectionMonitoring() {
-        if (!this.database) return;
-
-        const connectedRef = this.database.ref('.info/connected');
-        connectedRef.on('value', (snapshot) => {
-            const connected = snapshot.val() === true;
+    setupStatusMonitoring() {
+        // Listen for Firebase connection updates from firebase-config.js
+        window.addEventListener('firebaseConnectionUpdate', (event) => {
+            const { connected } = event.detail;
+            this.isFirebaseAvailable = connected;
             this.connectionStatus = connected ? 'online' : 'offline';
             
-            console.log(`🔥 Firebase connection: ${connected ? 'Online' : 'Offline'}`);
-            this.notifyConnectionChange(connected, 'firebase');
-        });
-    }
-
-    setupLocalStorageMode() {
-        this.connectionStatus = 'localStorage';
-        console.log('💾 Running in localStorage-only mode');
-        
-        // Check if Firebase CDN was blocked vs configuration issue
-        const isFirebaseBlocked = typeof firebase === 'undefined';
-        const errorMessage = isFirebaseBlocked 
-            ? 'Firebase CDN blocked - using local storage'
-            : 'Firebase configuration issue - using local storage';
-        
-        // Notify UI that we're in localStorage mode
-        this.notifyConnectionChange(false, 'localStorage', errorMessage);
-        
-        // Show user-friendly notification
-        setTimeout(() => {
-            if (isFirebaseBlocked) {
-                this.showUserNotification(
-                    '💾 Chế độ Offline: Firebase CDN bị chặn. Dữ liệu được lưu cục bộ.',
-                    'warning'
-                );
-            } else {
-                this.showUserNotification(
-                    '💾 Chế độ Offline: Lỗi cấu hình Firebase. Dữ liệu được lưu cục bộ.',
-                    'warning'
-                );
+            if (connected && typeof FirebaseConfig !== 'undefined') {
+                this.database = FirebaseConfig.getDatabase();
             }
-        }, 1000);
+        });
+
+        // Listen for connection status updates
+        window.addEventListener('connectionStatusUpdate', (event) => {
+            const { online, databaseType, error } = event.detail;
+            if (databaseType === 'firebase') {
+                this.isFirebaseAvailable = online;
+                this.connectionStatus = online ? 'online' : 'offline';
+            } else if (databaseType === 'localStorage') {
+                this.connectionStatus = 'localStorage';
+            }
+        });
+
+        // Check if Firebase is already initialized
+        setTimeout(() => {
+            if (typeof FirebaseConfig !== 'undefined') {
+                const status = FirebaseConfig.getConnectionStatus();
+                if (status.initialized && status.database) {
+                    this.isFirebaseAvailable = true;
+                    this.database = FirebaseConfig.getDatabase();
+                    this.connectionStatus = 'online';
+                }
+            }
+        }, 200);
     }
 
     notifyConnectionChange(online, source, errorMessage = null) {

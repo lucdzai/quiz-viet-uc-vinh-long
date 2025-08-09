@@ -47,40 +47,41 @@ document.addEventListener('DOMContentLoaded', function() {
     updateSystemInfo();
 });
 
-// Set up real-time listeners for Firebase
+// Set up real-time listeners if Firebase is available
 function setupRealtimeListeners() {
     console.log('🔥 Setting up real-time listeners...');
     
-    // Check if FirebaseFallback is available, with retry logic
+    // Use FirebaseFallback for unified data access
     const trySetupListeners = (attempts = 0) => {
-        if (typeof window.FirebaseFallback !== 'undefined' && window.FirebaseFallback.onDataChange) {
+        if (typeof window.FirebaseFallback !== 'undefined') {
             try {
-                realtimeUnsubscribe = window.FirebaseFallback.onDataChange((update) => {
-                    console.log('🔥 Real-time update received:', update.type);
-                    
-                    if (update.type === 'users') {
-                        userData = update.data;
-                        if (currentSection === 'data') {
-                            displayUserData(userData);
-                        }
-                        if (currentSection === 'dashboard') {
-                            updateRecentActivity();
-                        }
-                    } else if (update.type === 'stats') {
-                        stats = {
-                            success: true,
-                            ...update.data,
-                            source: 'firebase_realtime'
-                        };
-                        if (currentSection === 'dashboard') {
-                            updateStatsDisplay();
-                            updateStatsChart();
-                        }
-                    }
-                });
-                
+                // Check if Firebase is actually available
                 const status = window.FirebaseFallback.getConnectionStatus();
-                if (status.firebaseAvailable) {
+                if (status.firebaseAvailable && status.isOnline) {
+                    realtimeUnsubscribe = window.FirebaseFallback.onDataChange((update) => {
+                        console.log('🔥 Real-time update received:', update.type);
+                        
+                        if (update.type === 'users') {
+                            userData = update.data;
+                            if (currentSection === 'data') {
+                                displayUserData(userData);
+                            }
+                            if (currentSection === 'dashboard') {
+                                updateRecentActivity();
+                            }
+                        } else if (update.type === 'stats') {
+                            stats = {
+                                success: true,
+                                ...update.data,
+                                source: 'firebase_realtime'
+                            };
+                            if (currentSection === 'dashboard') {
+                                updateStatsDisplay();
+                                updateStatsChart();
+                            }
+                        }
+                    });
+                    
                     console.log('✅ Firebase real-time listeners active');
                     showNotification('🔥 Real-time updates enabled', 'success');
                 } else {
@@ -96,7 +97,7 @@ function setupRealtimeListeners() {
             setTimeout(() => trySetupListeners(attempts + 1), 250);
         } else {
             console.log('ℹ️ Real-time listeners not available (FirebaseFallback not ready after 20 attempts)');
-            showNotification('ℹ️ Mode polling (tidak real-time)', 'info');
+            showNotification('ℹ️ Mode polling (không real-time)', 'info');
         }
     };
     
@@ -860,46 +861,13 @@ async function checkConnection() {
         
         console.log(`🔄 Testing connection to ${dbType}...`);
         
-        if (dbType === 'firebase' && typeof window.FirebaseFallback !== 'undefined') {
-            // Test Firebase fallback connection
-            const healthCheck = await window.FirebaseFallback.healthCheck();
-            online = healthCheck.connected;
-            errorDetails = healthCheck.connected ? null : healthCheck.error || 'Firebase connection failed';
-            
-            if (online) {
-                console.log(`✅ Firebase fallback health check: ${healthCheck.responseTime}ms`);
-            } else {
-                console.warn(`❌ Firebase fallback health check failed: ${healthCheck.status}`);
-            }
-        } else if (dbType === 'firebase' && typeof FirebaseDB !== 'undefined') {
-            // Test Firebase connection
-            const healthCheck = await FirebaseDB.healthCheck();
-            online = healthCheck.connected;
-            errorDetails = healthCheck.connected ? null : 'Firebase connection failed';
-            
-            if (online) {
-                console.log(`✅ Firebase health check: ${healthCheck.responseTime}ms`);
-            }
-        } else if (dbType === 'google_sheets' && typeof GoogleSheets !== 'undefined') {
-            // Test Google Sheets connection
-            const healthCheck = await GoogleSheets.healthCheck();
-            online = healthCheck.connected;
-            errorDetails = healthCheck.connected ? null : 'Google Sheets connection failed';
-            
-            if (online) {
-                console.log(`✅ Google Sheets health check: ${healthCheck.responseTime}ms`);
-            } else {
-                console.warn(`❌ Google Sheets health check failed: ${healthCheck.status}`);
-            }
-        } else {
-            // Fallback to Database.testConnection
-            try {
-                online = await Database.testConnection();
-                errorDetails = online ? null : 'Database test connection failed';
-            } catch (error) {
-                online = false;
-                errorDetails = error.message;
-            }
+        // Use unified Database.testConnection method
+        try {
+            online = await Database.testConnection();
+            errorDetails = online ? null : 'Database test connection failed';
+        } catch (error) {
+            online = false;
+            errorDetails = error.message;
         }
         
         updateConnectionDisplay(online, dbType, errorDetails);

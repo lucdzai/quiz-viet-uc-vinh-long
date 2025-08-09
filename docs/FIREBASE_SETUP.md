@@ -35,8 +35,28 @@ Firebase Realtime Database offers several advantages over Google Sheets:
 
 ## Step 3: Configure Database Rules
 
+The project includes a `database.rules.json` file with the correct security rules. Deploy these rules using one of the following methods:
+
+### Method 1: Using Firebase CLI (Recommended)
+
+```bash
+# Install Firebase CLI
+npm install -g firebase-tools
+
+# Login to Firebase
+firebase login
+
+# Initialize Firebase project (if not already done)
+firebase init database
+
+# Deploy the rules
+firebase deploy --only database
+```
+
+### Method 2: Manual Setup via Console
+
 1. In the Realtime Database console, click on the **"Rules"** tab
-2. Replace the default rules with the following:
+2. Replace the default rules with the contents from `database.rules.json`:
 
 ```json
 {
@@ -45,12 +65,13 @@ Firebase Realtime Database offers several advantages over Google Sheets:
       ".read": true,
       ".write": true,
       "$userId": {
-        ".validate": "newData.hasChildren(['timestamp', 'name', 'phone', 'classType'])"
+        ".validate": "newData.hasChildren(['timestamp']) && newData.child('timestamp').isString()"
       }
     },
     "stats": {
       ".read": true,
-      ".write": true
+      ".write": true,
+      ".validate": "newData.hasChildren(['lastUpdated']) && newData.child('lastUpdated').isString()"
     }
   }
 }

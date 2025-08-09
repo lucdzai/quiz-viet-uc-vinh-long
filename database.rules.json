@@ -1,0 +1,16 @@
+{
+  "rules": {
+    "users": {
+      ".read": true,
+      ".write": true,
+      "$userId": {
+        ".validate": "newData.hasChildren(['timestamp']) && newData.child('timestamp').isString()"
+      }
+    },
+    "stats": {
+      ".read": true,
+      ".write": true,
+      ".validate": "newData.hasChildren(['lastUpdated']) && newData.child('lastUpdated').isString()"
+    }
+  }
+}
