@@ -770,11 +770,175 @@ function showSetupGuide() {
 }
 
 function clearLocalData() {
-    if (confirm('⚠️ Bạn có chắc muốn xóa tất cả dữ liệu local? Hành động này không thể hoàn tác!')) {
-        localStorage.clear();
-        showNotification('Đã xóa dữ liệu local', 'success');
-        refreshDashboard();
+    // Keep the old simple function for backward compatibility
+    showClearDataDialog();
+}
+
+// Enhanced Clear Data Functions
+function showClearDataDialog() {
+    document.getElementById('clear-data-dialog').style.display = 'flex';
+}
+
+function hideClearDataDialog() {
+    document.getElementById('clear-data-dialog').style.display = 'none';
+}
+
+async function confirmClearAllData() {
+    hideClearDataDialog();
+    showLoading('Đang xóa tất cả dữ liệu...');
+    
+    try {
+        let clearedItems = [];
+        let errors = [];
+        
+        // 1. Clear localStorage
+        try {
+            const localStorageCount = localStorage.length;
+            localStorage.clear();
+            clearedItems.push(`localStorage (${localStorageCount} items)`);
+            console.log('✅ Đã xóa localStorage');
+        } catch (error) {
+            console.error('❌ Lỗi xóa localStorage:', error);
+            errors.push('localStorage: ' + error.message);
+        }
+        
+        // 2. Clear sessionStorage
+        try {
+            const sessionStorageCount = sessionStorage.length;
+            sessionStorage.clear();
+            clearedItems.push(`sessionStorage (${sessionStorageCount} items)`);
+            console.log('✅ Đã xóa sessionStorage');
+        } catch (error) {
+            console.error('❌ Lỗi xóa sessionStorage:', error);
+            errors.push('sessionStorage: ' + error.message);
+        }
+        
+        // 3. Clear IndexedDB (Firebase and other local databases)
+        try {
+            await clearIndexedDB();
+            clearedItems.push('IndexedDB (Firebase cache)');
+            console.log('✅ Đã xóa IndexedDB');
+        } catch (error) {
+            console.error('❌ Lỗi xóa IndexedDB:', error);
+            errors.push('IndexedDB: ' + error.message);
+        }
+        
+        // 4. Clear browser cache (limited by browser security)
+        try {
+            if ('caches' in window) {
+                const cacheNames = await caches.keys();
+                await Promise.all(
+                    cacheNames.map(cacheName => caches.delete(cacheName))
+                );
+                clearedItems.push(`Browser caches (${cacheNames.length} caches)`);
+                console.log('✅ Đã xóa browser caches');
+            } else {
+                console.log('ℹ️ Browser cache API không khả dụng');
+            }
+        } catch (error) {
+            console.error('❌ Lỗi xóa browser cache:', error);
+            errors.push('Browser cache: ' + error.message);
+        }
+        
+        // 5. Clean up Firebase real-time listeners
+        try {
+            cleanupRealtimeListeners();
+            console.log('✅ Đã dọn dẹp Firebase listeners');
+        } catch (error) {
+            console.error('❌ Lỗi dọn dẹp listeners:', error);
+        }
+        
+        hideLoading();
+        
+        // Show success notification with details
+        if (clearedItems.length > 0) {
+            const successMessage = `✅ Đã xóa thành công:\n${clearedItems.map(item => '• ' + item).join('\n')}`;
+            console.log(successMessage);
+            showNotification('🎉 Đã xóa tất cả dữ liệu thành công!', 'success');
+            
+            // Show errors if any
+            if (errors.length > 0) {
+                setTimeout(() => {
+                    const errorMessage = `⚠️ Một số lỗi:\n${errors.map(err => '• ' + err).join('\n')}`;
+                    console.warn(errorMessage);
+                    showNotification('⚠️ Có một số lỗi nhỏ, nhưng đã xóa được phần lớn dữ liệu', 'warning');
+                }, 2000);
+            }
+            
+            // Reload page after a short delay
+            setTimeout(() => {
+                showNotification('🔄 Đang tải lại trang...', 'info');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            }, 3000);
+            
+        } else {
+            showNotification('❌ Không thể xóa dữ liệu: ' + errors.join(', '), 'error');
+        }
+        
+    } catch (error) {
+        hideLoading();
+        console.error('❌ Lỗi tổng quát khi xóa dữ liệu:', error);
+        showNotification('❌ Có lỗi xảy ra: ' + error.message, 'error');
     }
+}
+
+// Helper function to clear IndexedDB
+async function clearIndexedDB() {
+    return new Promise((resolve, reject) => {
+        // Get list of all databases (modern browsers)
+        if ('databases' in indexedDB) {
+            indexedDB.databases().then(databases => {
+                const deletePromises = databases.map(db => {
+                    return new Promise((resolveDelete, rejectDelete) => {
+                        const deleteReq = indexedDB.deleteDatabase(db.name);
+                        deleteReq.onsuccess = () => {
+                            console.log(`✅ Đã xóa database: ${db.name}`);
+                            resolveDelete();
+                        };
+                        deleteReq.onerror = () => {
+                            console.warn(`⚠️ Không thể xóa database: ${db.name}`);
+                            resolveDelete(); // Don't fail the whole process
+                        };
+                        deleteReq.onblocked = () => {
+                            console.warn(`⚠️ Database bị khóa: ${db.name}`);
+                            resolveDelete(); // Don't fail the whole process
+                        };
+                    });
+                });
+                
+                Promise.all(deletePromises).then(() => resolve()).catch(reject);
+            }).catch(reject);
+        } else {
+            // Fallback for older browsers - try to delete known Firebase databases
+            const knownDatabases = [
+                'firebaseLocalStorageDb',
+                'firebase-app-check-database',
+                'firebase-installations-database'
+            ];
+            
+            const deletePromises = knownDatabases.map(dbName => {
+                return new Promise((resolveDelete) => {
+                    const deleteReq = indexedDB.deleteDatabase(dbName);
+                    deleteReq.onsuccess = () => {
+                        console.log(`✅ Đã xóa database: ${dbName}`);
+                        resolveDelete();
+                    };
+                    deleteReq.onerror = () => {
+                        console.log(`ℹ️ Database không tồn tại hoặc không thể xóa: ${dbName}`);
+                        resolveDelete(); // Don't fail the whole process
+                    };
+                    deleteReq.onblocked = () => {
+                        console.log(`⚠️ Database bị khóa: ${dbName}`);
+                        resolveDelete(); // Don't fail the whole process
+                    };
+                });
+            });
+            
+            Promise.all(deletePromises).then(() => resolve()).catch(reject);
+        }
+    });
 }
 
 function syncData() {
