@@ -227,9 +227,20 @@ class SyncService {
      */
     async syncUserData(item) {
         try {
-            if (typeof Database !== 'undefined' && Database.saveUserData) {
-                const result = await Database.saveUserData(item.data);
-                return result.success && !result.fallback;
+            if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
+                const database = FirebaseConfig.getDatabase();
+                if (!database) {
+                    return false;
+                }
+
+                const userRef = window.firebase.database.ref(database, `users/${item.data.id || Date.now()}`);
+                await window.firebase.database.set(userRef, {
+                    ...item.data,
+                    syncedAt: window.firebase.database.serverTimestamp(),
+                    source: 'sync'
+                });
+                
+                return true;
             }
             return false;
         } catch (error) {
@@ -243,10 +254,22 @@ class SyncService {
      */
     async syncQuizResult(item) {
         try {
-            if (typeof Database !== 'undefined' && Database.updateQuizResult) {
+            if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
+                const database = FirebaseConfig.getDatabase();
+                if (!database) {
+                    return false;
+                }
+
+                const userRef = window.firebase.database.ref(database, `users/${item.id}`);
                 const { score, answers } = item.data;
-                const result = await Database.updateQuizResult(item.id, score, answers);
-                return result.success && !result.fallback;
+                
+                await window.firebase.database.update(userRef, {
+                    score: score,
+                    answers: answers,
+                    quizCompletedAt: window.firebase.database.serverTimestamp()
+                });
+                
+                return true;
             }
             return false;
         } catch (error) {
@@ -260,9 +283,19 @@ class SyncService {
      */
     async syncWheelResult(item) {
         try {
-            if (typeof Database !== 'undefined' && Database.updateWheelResult) {
-                const result = await Database.updateWheelResult(item.id, item.data.prize);
-                return result.success && !result.fallback;
+            if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
+                const database = FirebaseConfig.getDatabase();
+                if (!database) {
+                    return false;
+                }
+
+                const userRef = window.firebase.database.ref(database, `users/${item.id}`);
+                await window.firebase.database.update(userRef, {
+                    prize: item.data.prize,
+                    wheelCompletedAt: window.firebase.database.serverTimestamp()
+                });
+                
+                return true;
             }
             return false;
         } catch (error) {
@@ -276,10 +309,22 @@ class SyncService {
      */
     async syncFinalChoice(item) {
         try {
-            if (typeof Database !== 'undefined' && Database.updateFinalChoice) {
+            if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
+                const database = FirebaseConfig.getDatabase();
+                if (!database) {
+                    return false;
+                }
+
+                const userRef = window.firebase.database.ref(database, `users/${item.id}`);
                 const { choice, registrationData } = item.data;
-                const result = await Database.updateFinalChoice(item.id, choice, registrationData);
-                return result.success && !result.fallback;
+                
+                await window.firebase.database.update(userRef, {
+                    choice: choice,
+                    registrationData: registrationData,
+                    finalChoiceAt: window.firebase.database.serverTimestamp()
+                });
+                
+                return true;
             }
             return false;
         } catch (error) {
