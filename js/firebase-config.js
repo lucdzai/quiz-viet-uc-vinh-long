@@ -2,11 +2,10 @@
  * Firebase Configuration Module
  * 
  * This module provides Firebase Realtime Database configuration and initialization.
- * Replace the placeholder configuration with your actual Firebase project settings.
+ * Updated for Firebase SDK v10.7.1 with modular imports.
  */
 
 // Firebase configuration object
-// IMPORTANT: Replace these with your actual Firebase project configuration
 const FIREBASE_CONFIG = {
     apiKey: "AIzaSyCweCbYPM-OWpQ5tVrK7AMT-xh0OL_SgLI",
     authDomain: "quiz-viet-uc-vinh-long.firebaseapp.com",
@@ -30,32 +29,29 @@ let database = null;
 let isFirebaseInitialized = false;
 
 /**
- * Initialize Firebase application
+ * Initialize Firebase application with v10 syntax
  */
 function initializeFirebase() {
     try {
-        // Check if Firebase SDK is loaded
-        if (typeof firebase === 'undefined') {
+        // Check if Firebase modules are loaded
+        if (typeof window.firebase === 'undefined' || !window.firebase.initializeApp) {
             console.warn('⚠️ Firebase SDK not loaded. Please include Firebase scripts in your HTML.');
             console.info('💡 Application will continue in offline mode using localStorage');
             return false;
         }
 
         // Check if Firebase is already initialized
-        if (firebase.apps.length > 0) {
-            firebaseApp = firebase.app();
-            database = firebase.database();
-            isFirebaseInitialized = true;
+        if (firebaseApp) {
             console.log('✅ Firebase already initialized');
             return true;
         }
 
-        // Initialize Firebase
-        firebaseApp = firebase.initializeApp(FIREBASE_CONFIG);
-        database = firebase.database();
+        // Initialize Firebase with v10 syntax
+        firebaseApp = window.firebase.initializeApp(FIREBASE_CONFIG);
+        database = window.firebase.database.getDatabase(firebaseApp);
         isFirebaseInitialized = true;
         
-        console.log('✅ Firebase initialized successfully');
+        console.log('✅ Firebase v10 initialized successfully');
         
         // Set up connection monitoring
         setupConnectionMonitoring();
@@ -82,7 +78,7 @@ function initializeFirebase() {
 }
 
 /**
- * Set up Firebase connection monitoring
+ * Set up Firebase connection monitoring with v10 syntax
  */
 function setupConnectionMonitoring() {
     if (!database) {
@@ -90,43 +86,47 @@ function setupConnectionMonitoring() {
         return;
     }
     
-    const connectedRef = database.ref('.info/connected');
-    connectedRef.on('value', (snapshot) => {
-        const connected = snapshot.val();
-        console.log(`🔥 Firebase connection status: ${connected ? '✅ Connected' : '❌ Disconnected'}`);
-        
-        // Update global connection status
-        if (typeof ConnectionStatus !== 'undefined') {
-            ConnectionStatus.isOnline = connected;
-            ConnectionStatus.currentDatabaseType = connected ? 'firebase' : 'localStorage';
-        }
-        
-        // Trigger custom event for UI updates
-        window.dispatchEvent(new CustomEvent('firebaseConnectionUpdate', { 
-            detail: { connected }
-        }));
-        
-        // Trigger connection status update for admin dashboard
-        window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { 
-            detail: { 
-                online: connected,
-                databaseType: connected ? 'firebase' : 'localStorage',
-                message: connected ? 'Firebase connected' : 'Using offline mode'
+    try {
+        const connectedRef = window.firebase.database.ref(database, '.info/connected');
+        window.firebase.database.onValue(connectedRef, (snapshot) => {
+            const connected = snapshot.val();
+            console.log(`🔥 Firebase connection status: ${connected ? '✅ Connected' : '❌ Disconnected'}`);
+            
+            // Update global connection status
+            if (typeof ConnectionStatus !== 'undefined') {
+                ConnectionStatus.isOnline = connected;
+                ConnectionStatus.currentDatabaseType = connected ? 'firebase' : 'localStorage';
             }
-        }));
-    }, (error) => {
-        console.error('❌ Firebase connection monitoring failed:', error);
-        console.info('📱 Continuing in offline mode');
-        
-        // Trigger error event
-        window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { 
-            detail: { 
-                online: false,
-                databaseType: 'localStorage',
-                error: `Connection monitoring failed: ${error.message}`
-            }
-        }));
-    });
+            
+            // Trigger custom event for UI updates
+            window.dispatchEvent(new CustomEvent('firebaseConnectionUpdate', { 
+                detail: { connected }
+            }));
+            
+            // Trigger connection status update for admin dashboard
+            window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { 
+                detail: { 
+                    online: connected,
+                    databaseType: connected ? 'firebase' : 'localStorage',
+                    message: connected ? 'Firebase connected' : 'Using offline mode'
+                }
+            }));
+        }, (error) => {
+            console.error('❌ Firebase connection monitoring failed:', error);
+            console.info('📱 Continuing in offline mode');
+            
+            // Trigger error event
+            window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { 
+                detail: { 
+                    online: false,
+                    databaseType: 'localStorage',
+                    error: `Connection monitoring failed: ${error.message}`
+                }
+            }));
+        });
+    } catch (error) {
+        console.error('❌ Failed to setup connection monitoring:', error);
+    }
 }
 
 /**
@@ -168,7 +168,7 @@ function getConnectionStatus() {
 }
 
 /**
- * Test Firebase connection
+ * Test Firebase connection with v10 syntax
  */
 async function testFirebaseConnection() {
     if (!isFirebaseInitialized || !database) {
@@ -177,7 +177,8 @@ async function testFirebaseConnection() {
     
     try {
         // Try to read server timestamp
-        const snapshot = await database.ref('.info/serverTimeOffset').once('value');
+        const serverTimeRef = window.firebase.database.ref(database, '.info/serverTimeOffset');
+        const snapshot = await window.firebase.database.get(serverTimeRef);
         return snapshot.exists();
     } catch (error) {
         console.error('❌ Firebase connection test failed:', error);
@@ -201,10 +202,10 @@ window.FirebaseConfig = {
 // Auto-initialize Firebase when script loads (if configured)
 document.addEventListener('DOMContentLoaded', function() {
     if (isFirebaseConfigured()) {
-        console.log('🔥 Auto-initializing Firebase...');
+        console.log('🔥 Auto-initializing Firebase v10...');
         setTimeout(() => {
             // Delay initialization to ensure Firebase SDK is loaded
-            if (typeof firebase !== 'undefined') {
+            if (typeof window.firebase !== 'undefined' && window.firebase.initializeApp) {
                 initializeFirebase();
             } else {
                 console.warn('⚠️ Firebase SDK not available - falling back to localStorage mode');
@@ -218,7 +219,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }));
             }
-        }, 100);
+        }, 200); // Increased delay for module loading
     } else {
         console.log('⚠️ Firebase not configured. Update FIREBASE_CONFIG in firebase-config.js');
     }
