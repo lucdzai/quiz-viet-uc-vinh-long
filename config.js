@@ -10,7 +10,7 @@ const CONFIG = {
     // 4. Xem docs/GOOGLE_SHEETS_SETUP.md để có hướng dẫn chi tiết
     //
     // LưU Ý: URL dưới đây là placeholder, cần thay bằng URL thực của bạn
-    GOOGLE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxlKYrDolp93nqotk6vFlKOAbKS1fB1EKv0ceX3AZNHVWFt_dp3Ckcp7c3ThBe8RK9Yng/exec',
+    GOOGLE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzD6VQz8M-JjcfJ3Ms5X-6_kiMms8_qqm_RbwxiXJduUFGEdz5QjBD2Usmg0Ommig6YBw/exec',
     
     // URL của website (sẽ tự động cập nhật khi deploy)
     WEBSITE_URL: 'https://lucdzai.github.io/quiz-viet-uc-vinh-long',
@@ -368,6 +368,7 @@ if (window.location.search.indexOf('student=true') === -1) {
         }, 1000);
     });
 }
+
 
 
 
