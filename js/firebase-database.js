@@ -62,6 +62,26 @@ class FirebaseDatabase {
         connectedRef.on('value', (snapshot) => {
             this.isOnline = snapshot.val() === true;
             console.log(`🔥 Firebase status: ${this.isOnline ? 'Online' : 'Offline'}`);
+            
+            // Trigger connection status update for admin dashboard
+            window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { 
+                detail: { 
+                    online: this.isOnline,
+                    databaseType: 'firebase'
+                }
+            }));
+        }, (error) => {
+            console.error('❌ Firebase connection monitoring error:', error);
+            this.isOnline = false;
+            
+            // Trigger connection status update for errors
+            window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { 
+                detail: { 
+                    online: false,
+                    databaseType: 'firebase',
+                    error: error.message
+                }
+            }));
         });
     }
 
@@ -316,26 +336,35 @@ class FirebaseDatabase {
                     ...users[key]
                 }));
                 
+                console.log(`🔥 Firebase users update: ${userArray.length} records`);
                 callback({
                     type: 'users',
                     data: userArray
                 });
+            }, (error) => {
+                console.error('❌ Firebase users listener error:', error);
             });
 
             const statsListener = statsRef.on('value', (snapshot) => {
                 const stats = snapshot.val() || {};
+                console.log('🔥 Firebase stats update:', stats);
                 callback({
                     type: 'stats',
                     data: stats
                 });
+            }, (error) => {
+                console.error('❌ Firebase stats listener error:', error);
             });
 
             // Store listeners for cleanup
             this.listeners.set('users', { ref: usersRef, listener: usersListener });
             this.listeners.set('stats', { ref: statsRef, listener: statsListener });
 
+            console.log('✅ Firebase real-time listeners established');
+
             // Return unsubscribe function
             return () => {
+                console.log('🔥 Cleaning up Firebase listeners');
                 usersRef.off('value', usersListener);
                 statsRef.off('value', statsListener);
                 this.listeners.delete('users');

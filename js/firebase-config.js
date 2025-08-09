@@ -78,9 +78,23 @@ function setupConnectionMonitoring() {
         const connected = snapshot.val();
         console.log(`🔥 Firebase connection status: ${connected ? '✅ Connected' : '❌ Disconnected'}`);
         
+        // Update global connection status
+        if (typeof ConnectionStatus !== 'undefined') {
+            ConnectionStatus.isOnline = connected;
+            ConnectionStatus.currentDatabaseType = connected ? 'firebase' : 'localStorage';
+        }
+        
         // Trigger custom event for UI updates
         window.dispatchEvent(new CustomEvent('firebaseConnectionUpdate', { 
             detail: { connected }
+        }));
+        
+        // Trigger connection status update for admin dashboard
+        window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { 
+            detail: { 
+                online: connected,
+                databaseType: connected ? 'firebase' : 'localStorage'
+            }
         }));
     });
 }
