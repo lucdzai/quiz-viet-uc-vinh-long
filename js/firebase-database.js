@@ -60,6 +60,11 @@ class FirebaseDatabase {
                 this.isOnline = snapshot.val() === true;
                 console.log(`🔥 Firebase status: ${this.isOnline ? 'Online' : 'Offline'}`);
                 
+                // When connection is established, verify database access
+                if (this.isOnline && typeof FirebaseConfig !== 'undefined' && FirebaseConfig.verifyDatabaseAccess) {
+                    FirebaseConfig.verifyDatabaseAccess();
+                }
+                
                 // Trigger connection status update for admin dashboard
                 window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { 
                     detail: { 
@@ -69,19 +74,33 @@ class FirebaseDatabase {
                 }));
             }, (error) => {
                 console.error('❌ Firebase connection monitoring error:', error);
+                console.error('❌ Monitoring error details:', {
+                    code: error.code,
+                    message: error.message
+                });
                 this.isOnline = false;
+                
+                // Determine if fallback should be triggered
+                const shouldFallback = error.code === 'PERMISSION_DENIED' || 
+                                     (error.message && error.message.includes('Invalid token in path'));
                 
                 // Trigger connection status update for errors
                 window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { 
                     detail: { 
                         online: false,
-                        databaseType: 'firebase',
-                        error: error.message
+                        databaseType: shouldFallback ? 'localStorage' : 'firebase',
+                        error: error.message,
+                        errorCode: error.code,
+                        shouldFallback: shouldFallback
                     }
                 }));
             });
         } catch (error) {
             console.error('❌ Failed to setup connection monitoring:', error);
+            console.error('❌ Setup error details:', {
+                message: error.message,
+                stack: error.stack
+            });
         }
     }
 
@@ -303,22 +322,62 @@ class FirebaseDatabase {
     }
 
     /**
-     * Test Firebase connection with v10 syntax
+     * Test Firebase connection with v10 syntax using valid database paths
      */
     async testConnection() {
         try {
             if (!this.database) {
+                console.warn('⚠️ Cannot test connection - Firebase database not initialized');
                 return false;
             }
 
-            // Test by reading server timestamp
-            const serverTimeRef = window.firebase.database.ref(this.database, '.info/serverTimeOffset');
-            const snapshot = await window.firebase.database.get(serverTimeRef);
-            this.isOnline = true;
-            return true;
+            // Use the centralized connection test from firebase-config.js
+            if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.testFirebaseConnection) {
+                const connected = await FirebaseConfig.testFirebaseConnection();
+                this.isOnline = connected;
+                
+                if (connected) {
+                    console.log('✅ Firebase database connection test successful');
+                } else {
+                    console.warn('⚠️ Firebase database connection test failed');
+                }
+                
+                return connected;
+            }
+            
+            // Fallback test method if FirebaseConfig is not available
+            const testRef = window.firebase.database.ref(this.database, 'connection_test');
+            const testData = {
+                timestamp: Date.now(),
+                test: true
+            };
+            
+            await window.firebase.database.set(testRef, testData);
+            const snapshot = await window.firebase.database.get(testRef);
+            const success = snapshot.exists() && snapshot.val().test === true;
+            
+            if (success) {
+                // Clean up test data
+                await window.firebase.database.set(testRef, null);
+            }
+            
+            this.isOnline = success;
+            return success;
             
         } catch (error) {
             console.error('❌ Firebase connection test failed:', error);
+            console.error('❌ Connection test error details:', {
+                code: error.code,
+                message: error.message
+            });
+            
+            // Handle specific error types
+            if (error.code === 'PERMISSION_DENIED') {
+                console.error('🔒 Database permission denied during connection test');
+            } else if (error.message && error.message.includes('Invalid token in path')) {
+                console.error('🔤 Invalid path token during connection test');
+            }
+            
             this.isOnline = false;
             return false;
         }
