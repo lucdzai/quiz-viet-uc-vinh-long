@@ -8,14 +8,14 @@
 // Firebase configuration object
 // IMPORTANT: Replace these with your actual Firebase project configuration
 const FIREBASE_CONFIG = {
-    apiKey : "AIzaSyCweCbYPM-OWpQ5tVrK7AMT-xh0OL_SgLI" , 
-    authDomain : "quiz-viet-uc-vinh-long.firebaseapp.com" , 
-    databaseURL : "https://quiz-viet-uc-vinh-long-default-rtdb.asia-southeast1.firebasedatabase.app" , 
-    projectId : “quiz-viet-uc-vinh-long” , 
-    storageBucket : "quiz-viet-uc-vinh-long.firebasestorage.app" , 
-    messagingSenderId : "324450811055" , 
-    appId : "1:324450811055:web:0c114401847a7c664ca85a" ,
-    measurementId : "G-V1BRGTJTWW"
+    apiKey: "AIzaSyCweCbYPM-OWpQ5tVrK7AMT-xh0OL_SgLI",
+    authDomain: "quiz-viet-uc-vinh-long.firebaseapp.com",
+    databaseURL: "https://quiz-viet-uc-vinh-long-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "quiz-viet-uc-vinh-long",
+    storageBucket: "quiz-viet-uc-vinh-long.firebasestorage.app",
+    messagingSenderId: "324450811055",
+    appId: "1:324450811055:web:0c114401847a7c664ca85a",
+    measurementId: "G-V1BRGTJTWW"
 };
 
 // Firebase database reference paths
@@ -37,6 +37,7 @@ function initializeFirebase() {
         // Check if Firebase SDK is loaded
         if (typeof firebase === 'undefined') {
             console.warn('⚠️ Firebase SDK not loaded. Please include Firebase scripts in your HTML.');
+            console.info('💡 Application will continue in offline mode using localStorage');
             return false;
         }
 
@@ -63,7 +64,19 @@ function initializeFirebase() {
         
     } catch (error) {
         console.error('❌ Firebase initialization failed:', error);
+        console.info('💡 Common causes: Invalid configuration, network issues, or Firebase service unavailable');
+        console.info('📱 Application will continue in offline mode using localStorage');
         isFirebaseInitialized = false;
+        
+        // Trigger error event for UI notification
+        window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { 
+            detail: { 
+                online: false,
+                databaseType: 'localStorage',
+                error: `Firebase initialization failed: ${error.message}`
+            }
+        }));
+        
         return false;
     }
 }
@@ -72,7 +85,10 @@ function initializeFirebase() {
  * Set up Firebase connection monitoring
  */
 function setupConnectionMonitoring() {
-    if (!database) return;
+    if (!database) {
+        console.info('📡 Connection monitoring not available - Firebase database not initialized');
+        return;
+    }
     
     const connectedRef = database.ref('.info/connected');
     connectedRef.on('value', (snapshot) => {
@@ -94,7 +110,20 @@ function setupConnectionMonitoring() {
         window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { 
             detail: { 
                 online: connected,
-                databaseType: connected ? 'firebase' : 'localStorage'
+                databaseType: connected ? 'firebase' : 'localStorage',
+                message: connected ? 'Firebase connected' : 'Using offline mode'
+            }
+        }));
+    }, (error) => {
+        console.error('❌ Firebase connection monitoring failed:', error);
+        console.info('📱 Continuing in offline mode');
+        
+        // Trigger error event
+        window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { 
+            detail: { 
+                online: false,
+                databaseType: 'localStorage',
+                error: `Connection monitoring failed: ${error.message}`
             }
         }));
     });
@@ -178,13 +207,14 @@ document.addEventListener('DOMContentLoaded', function() {
             if (typeof firebase !== 'undefined') {
                 initializeFirebase();
             } else {
-                console.warn('⚠️ Firebase SDK not available - check network or ad blockers');
-                // Trigger fallback mode event
+                console.warn('⚠️ Firebase SDK not available - falling back to localStorage mode');
+                console.info('💡 Tip: This could be due to network issues, ad blockers, or CDN blocking');
+                // Trigger fallback mode event with more informative message
                 window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { 
                     detail: { 
                         online: false,
                         databaseType: 'localStorage',
-                        error: 'Firebase SDK not loaded'
+                        error: 'Firebase SDK not loaded - using offline mode'
                     }
                 }));
             }
