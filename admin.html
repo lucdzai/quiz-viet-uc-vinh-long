@@ -97,29 +97,19 @@
                 <button class="nav-btn" onclick="loadUserData()">🔄 Làm mới</button>
             </div>
 
-            <div class="data-table" id="user-data-table">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Thời gian</th>
-                            <th>Tên</th>
-                            <th>SĐT</th>
-                            <th>Lớp học</th>
-                            <th>Điểm</th>
-                            <th>Quà</th>
-                            <th>Quyết định</th>
-                            <th>Trạng thái</th>
-                        </tr>
-                    </thead>
-                    <tbody id="user-data-body">
-                        <tr>
-                            <td colspan="8" style="text-align: center; padding: 2rem;">
-                                🔄 Đang tải dữ liệu...
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+            <table id="participantTable">
+                <thead>
+                    <tr>
+                        <th>Thời gian</th>
+                        <th>Họ và tên</th>
+                        <th>Số điện thoại</th>
+                        <th>Lớp</th>
+                        <th>Điểm</th>
+                    </tr>
+                </thead>
+                <tbody id="participantData">
+                </tbody>
+            </table>
         </section>
 
         <!-- Analytics Section -->
