@@ -1,4 +1,4 @@
-export const config = {
+const config = {
     // Player ID management
     get currentPlayerId() {
         return localStorage.getItem('currentPlayerId');
