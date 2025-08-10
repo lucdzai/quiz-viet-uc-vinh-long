@@ -1,4 +1,149 @@
-// Cấu hình cho Quiz App
+const config = {
+    // Player ID management
+    get currentPlayerId() {
+        return localStorage.getItem('currentPlayerId');
+    },
+    set currentPlayerId(id) {
+        if (id) {
+            localStorage.setItem('currentPlayerId', id);
+        } else {
+            localStorage.removeItem('currentPlayerId');
+        }
+    },
+
+    // Get next sequence number
+    async getNextSequence() {
+        try {
+            if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
+                const database = FirebaseConfig.getDatabase();
+                if (database && window.firebase?.database?.ref) {
+                    const counterRef = window.firebase.database.ref(database, 'counters/players');
+                    const snapshot = await window.firebase.database.get(counterRef);
+                    const current = (snapshot.val() || 0) + 1;
+                    await window.firebase.database.set(counterRef, current);
+                    return current;
+                }
+            }
+            return Date.now();
+        } catch (error) {
+            console.error('❌ Failed to get sequence number:', error);
+            return Date.now();
+        }
+    },
+
+    // Initialize new player with sanitized data
+    async initializePlayer(playerData) {
+        try {
+            const timestamp = Date.now();
+            const playerId = `player_${timestamp}`;
+            
+            // Sanitize input data
+            const sanitizedData = {
+                name: String(playerData.name || '').trim(),
+                phone: String(playerData.phone || '').trim(),
+                course: String(playerData.course || '').trim()
+            };
+            
+            if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
+                const database = FirebaseConfig.getDatabase();
+                if (database && window.firebase?.database?.ref && window.firebase?.database?.set) {
+                    const playerRef = window.firebase.database.ref(database, `players/${playerId}`);
+                    await window.firebase.database.set(playerRef, {
+                        id: playerId,
+                        startTime: window.firebase?.database?.serverTimestamp ? window.firebase.database.serverTimestamp() : timestamp,
+                        stt: await this.getNextSequence(),
+                        ...sanitizedData,
+                        score: 0,
+                        prize: '',
+                        finalDecision: '',
+                        lastUpdated: window.firebase?.database?.serverTimestamp ? window.firebase.database.serverTimestamp() : timestamp
+                    });
+                }
+            }
+
+            this.currentPlayerId = playerId;
+            console.log('✅ Player initialized:', playerId);
+            return true;
+        } catch (error) {
+            console.error('❌ Failed to initialize player:', error);
+            return false;
+        }
+    },
+
+    // Update quiz result with validation
+    async updateQuizResult(result) {
+        if (!this.currentPlayerId) {
+            console.error('❌ No active player');
+            return;
+        }
+
+        try {
+            if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
+                const database = FirebaseConfig.getDatabase();
+                if (database && window.firebase?.database?.ref && window.firebase?.database?.update) {
+                    const playerRef = window.firebase.database.ref(database, `players/${this.currentPlayerId}`);
+                    await window.firebase.database.update(playerRef, {
+                        score: Number(result.score) || 0,
+                        lastUpdated: window.firebase?.database?.serverTimestamp ? window.firebase.database.serverTimestamp() : Date.now()
+                    });
+                    console.log('✅ Quiz result updated');
+                }
+            }
+        } catch (error) {
+            console.error('❌ Quiz update error:', error);
+        }
+    },
+
+    // Update wheel result with prize name mapping
+    async updateWheelResult(prize) {
+        if (!this.currentPlayerId) {
+            console.error('❌ No active player');
+            return;
+        }
+
+        try {
+            if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
+                const database = FirebaseConfig.getDatabase();
+                if (database && window.firebase?.database?.ref && window.firebase?.database?.update) {
+                    const playerRef = window.firebase.database.ref(database, `players/${this.currentPlayerId}`);
+                    await window.firebase.database.update(playerRef, {
+                        prize: String(prize),
+                        lastUpdated: window.firebase?.database?.serverTimestamp ? window.firebase.database.serverTimestamp() : Date.now()
+                    });
+                    console.log('✅ Wheel result updated');
+                }
+            }
+        } catch (error) {
+            console.error('❌ Wheel update error:', error);
+        }
+    },
+
+    // Update final choice with boolean conversion
+    async updateFinalChoice(decision) {
+        if (!this.currentPlayerId) {
+            console.error('❌ No active player');
+            return;
+        }
+
+        try {
+            if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
+                const database = FirebaseConfig.getDatabase();
+                if (database && window.firebase?.database?.ref && window.firebase?.database?.update) {
+                    const playerRef = window.firebase.database.ref(database, `players/${this.currentPlayerId}`);
+                    await window.firebase.database.update(playerRef, {
+                        finalDecision: Boolean(decision),
+                        lastUpdated: window.firebase?.database?.serverTimestamp ? window.firebase.database.serverTimestamp() : Date.now()
+                    });
+                    console.log('✅ Final choice updated');
+                }
+            }
+        } catch (error) {
+            console.error('❌ Final choice update error:', error);
+        }
+    }
+};
+
+// Legacy compatibility - maintain existing CONFIG object for backward compatibility
 const CONFIG = {
     // Database configuration - Simplified to Firebase only
     DATABASE_TYPE: 'firebase', // 'firebase' only
@@ -29,7 +174,7 @@ const CONFIG = {
     }
 };
 
-// Database helper functions - Simplified Firebase-only implementation
+// Legacy database helper functions for backward compatibility
 const Database = {
     // Check if Firebase is available and configured
     isFirebaseAvailable() {
@@ -45,288 +190,6 @@ const Database = {
             return database ? 'firebase' : 'localStorage';
         }
         return 'localStorage';
-    },
-
-    // Lưu dữ liệu người dùng - Firebase only with localStorage fallback
-    async saveUserData(userData) {
-        try {
-            if (this.isFirebaseAvailable()) {
-                const database = FirebaseConfig.getDatabase();
-                if (database) {
-                    console.log('🔄 Saving to Firebase...');
-                    
-                    const userRef = window.firebase.database.ref(database, `players/${userData.id || Date.now()}`);
-                    await window.firebase.database.set(userRef, {
-                        ...userData,
-                        savedAt: window.firebase.database.serverTimestamp(),
-                        source: 'firebase'
-                    });
-                    
-                    console.log('✅ Firebase save successful');
-                    return { 
-                        success: true, 
-                        userId: userData.id,
-                        source: 'firebase'
-                    };
-                }
-            }
-            
-            // Fallback to localStorage
-            throw new Error('Firebase not available');
-            
-        } catch (error) {
-            console.warn('❌ Firebase save failed, using localStorage:', error.message);
-            const userId = this.saveToLocalStorage(userData);
-            return { 
-                success: true, 
-                fallback: true, 
-                userId: userId,
-                source: 'localStorage',
-                message: 'Saved offline'
-            };
-        }
-    },
-
-    // Cập nhật kết quả quiz
-    async updateQuizResult(userId, score, answers) {
-        try {
-            if (this.isFirebaseAvailable()) {
-                const database = FirebaseConfig.getDatabase();
-                if (database) {
-                    const userRef = window.firebase.database.ref(database, `players/${userId}`);
-                    await window.firebase.database.update(userRef, {
-                        score: score,
-                        answers: answers,
-                        quizCompletedAt: window.firebase.database.serverTimestamp()
-                    });
-                    
-                    console.log('✅ Quiz result updated in Firebase');
-                    return { success: true, source: 'firebase' };
-                }
-            }
-            
-            // Fallback to localStorage
-            this.updateLocalStorage(userId, { score, answers });
-            return { success: true, fallback: true, source: 'localStorage' };
-            
-        } catch (error) {
-            console.error('❌ Quiz update error:', error);
-            this.updateLocalStorage(userId, { score, answers });
-            return { success: true, fallback: true, source: 'localStorage' };
-        }
-    },
-
-    // Lưu kết quả vòng quay
-    async updateWheelResult(userId, prize) {
-        try {
-            if (this.isFirebaseAvailable()) {
-                const database = FirebaseConfig.getDatabase();
-                if (database) {
-                    const userRef = window.firebase.database.ref(database, `players/${userId}`);
-                    await window.firebase.database.update(userRef, {
-                        prize: prize,
-                        wheelCompletedAt: window.firebase.database.serverTimestamp()
-                    });
-                    
-                    console.log('✅ Wheel result updated in Firebase');
-                    return { success: true, source: 'firebase' };
-                }
-            }
-            
-            // Fallback to localStorage
-            this.updateLocalStorage(userId, { prize });
-            return { success: true, fallback: true, source: 'localStorage' };
-            
-        } catch (error) {
-            console.error('❌ Wheel update error:', error);
-            this.updateLocalStorage(userId, { prize });
-            return { success: true, fallback: true, source: 'localStorage' };
-        }
-    },
-
-    // Lưu lựa chọn cuối
-    async updateFinalChoice(userId, choice, registrationData) {
-        try {
-            if (this.isFirebaseAvailable()) {
-                const database = FirebaseConfig.getDatabase();
-                if (database) {
-                    const userRef = window.firebase.database.ref(database, `players/${userId}`);
-                    await window.firebase.database.update(userRef, {
-                        choice: choice,
-                        registrationData: registrationData,
-                        finalChoiceAt: window.firebase.database.serverTimestamp()
-                    });
-                    
-                    console.log('✅ Final choice updated in Firebase');
-                    return { success: true, source: 'firebase' };
-                }
-            }
-            
-            // Fallback to localStorage
-            this.updateLocalStorage(userId, { choice, registrationData });
-            return { success: true, fallback: true, source: 'localStorage' };
-            
-        } catch (error) {
-            console.error('❌ Final choice update error:', error);
-            this.updateLocalStorage(userId, { choice, registrationData });
-            return { success: true, fallback: true, source: 'localStorage' };
-        }
-    },
-
-    // Lấy thống kê
-    async getStats() {
-        try {
-            if (this.isFirebaseAvailable()) {
-                const database = FirebaseConfig.getDatabase();
-                if (database) {
-                    const usersRef = window.firebase.database.ref(database, 'players');
-                    const snapshot = await window.firebase.database.get(usersRef);
-                    
-                    if (snapshot.exists()) {
-                        const users = Object.values(snapshot.val());
-                        
-                        const totalParticipants = users.length;
-                        const completedQuiz = users.filter(u => u.score !== undefined).length;
-                        const passedQuiz = users.filter(u => u.score >= CONFIG.QUIZ_SETTINGS.PASS_SCORE).length;
-                        const registeredUsers = users.filter(u => 
-                            u.choice === 'register' || 
-                            u.registrationData?.registrationDecision === 'register'
-                        ).length;
-                        const declinedUsers = users.filter(u => 
-                            u.choice === 'decline' || 
-                            u.registrationData?.registrationDecision === 'decline'
-                        ).length;
-                        
-                        return {
-                            success: true,
-                            totalParticipants,
-                            completedQuiz,
-                            passedQuiz,
-                            registeredUsers,
-                            declinedUsers,
-                            lastUpdated: new Date().toISOString(),
-                            source: 'firebase'
-                        };
-                    }
-                }
-            }
-            
-            // Fallback to localStorage
-            return this.getLocalStats();
-            
-        } catch (error) {
-            console.error('❌ Stats error:', error);
-            return this.getLocalStats();
-        }
-    },
-
-    // Get all user data (for admin dashboard)
-    async getAllUserData() {
-        try {
-            if (this.isFirebaseAvailable()) {
-                const database = FirebaseConfig.getDatabase();
-                if (database) {
-                    const usersRef = window.firebase.database.ref(database, 'players');
-                    const snapshot = await window.firebase.database.get(usersRef);
-                    
-                    if (snapshot.exists()) {
-                        return {
-                            success: true,
-                            data: Object.values(snapshot.val()),
-                            source: 'firebase'
-                        };
-                    }
-                }
-            }
-            
-            // Fallback to localStorage
-            return {
-                success: true,
-                data: JSON.parse(localStorage.getItem('quizUsers') || '[]'),
-                source: 'localStorage'
-            };
-            
-        } catch (error) {
-            console.error('❌ Get all data error:', error);
-            return {
-                success: false,
-                data: [],
-                source: 'localStorage'
-            };
-        }
-    },
-
-    // Fallback functions cho localStorage
-    saveToLocalStorage(userData) {
-        try {
-            const users = JSON.parse(localStorage.getItem('quizUsers') || '[]');
-            userData.id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
-            userData.saved_locally = true;
-            users.push(userData);
-            localStorage.setItem('quizUsers', JSON.stringify(users));
-            console.log('Đã lưu vào localStorage:', userData.id);
-            return userData.id;
-        } catch (error) {
-            console.error('Lỗi lưu localStorage:', error);
-            return Date.now().toString();
-        }
-    },
-
-    updateLocalStorage(userId, updateData) {
-        try {
-            const users = JSON.parse(localStorage.getItem('quizUsers') || '[]');
-            const userIndex = users.findIndex(u => u.id === userId);
-            if (userIndex !== -1) {
-                users[userIndex] = { ...users[userIndex], ...updateData };
-                localStorage.setItem('quizUsers', JSON.stringify(users));
-                console.log('Đã cập nhật localStorage cho user:', userId);
-            }
-        } catch (error) {
-            console.error('Lỗi cập nhật localStorage:', error);
-        }
-    },
-
-    getLocalStats() {
-        try {
-            const users = JSON.parse(localStorage.getItem('quizUsers') || '[]');
-            
-            // Tính toán các thống kê chi tiết
-            const totalParticipants = users.length;
-            const completedQuiz = users.filter(u => u.score !== undefined).length;
-            const passedQuiz = users.filter(u => u.score >= CONFIG.QUIZ_SETTINGS.PASS_SCORE).length;
-            
-            // Thống kê quyết định đăng ký
-            const registeredUsers = users.filter(u => 
-                u.choice === 'register' || 
-                u.registrationData?.registrationDecision === 'register'
-            ).length;
-            
-            const declinedUsers = users.filter(u => 
-                u.choice === 'decline' || 
-                u.registrationData?.registrationDecision === 'decline'
-            ).length;
-            
-            return {
-                success: true,
-                totalParticipants: totalParticipants,
-                completedQuiz: completedQuiz,
-                passedQuiz: passedQuiz,
-                registeredUsers: registeredUsers,
-                declinedUsers: declinedUsers,
-                lastUpdated: new Date().toISOString(),
-                source: 'localStorage'
-            };
-        } catch (error) {
-            console.error('Lỗi lấy stats từ localStorage:', error);
-            return {
-                success: false,
-                totalParticipants: 0,
-                completedQuiz: 0,
-                passedQuiz: 0,
-                registeredUsers: 0,
-                declinedUsers: 0
-            };
-        }
     },
 
     // Test connection - Firebase only
@@ -355,8 +218,7 @@ const Database = {
     }
 };
 
-
-// Connection status helper with Firebase and Google Sheets support
+// Connection status helper with Firebase support
 const ConnectionStatus = {
     isOnline: false,
     lastCheck: null,
@@ -379,169 +241,6 @@ const ConnectionStatus = {
     }
 };
 
-class PlayerDataManager {
-    constructor() {
-        this.database = null;
-        this.initializeFirebase();
-    }
-
-    async initializeFirebase() {
-        try {
-            if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
-                this.database = FirebaseConfig.getDatabase();
-            }
-        } catch (error) {
-            console.error('❌ Firebase initialization failed:', error);
-        }
-    }
-
-    async initializePlayer(playerData) {
-        try {
-            if (!this.database) {
-                await this.initializeFirebase();
-            }
-
-            // Generate unique player ID
-            const timestamp = Date.now();
-            const playerId = `player_${timestamp}`;
-            
-            // Get next sequence number
-            const stt = await this.getNextSequence();
-            
-            const playerRecord = {
-                id: playerId,
-                startTime: timestamp,
-                stt: stt,
-                name: playerData.name || '',
-                phone: playerData.phone || '',
-                course: playerData.course || '',
-                score: 0,
-                prize: '',
-                finalDecision: '',
-                lastUpdated: window.firebase?.database?.serverTimestamp ? window.firebase.database.serverTimestamp() : timestamp
-            };
-
-            if (this.database && window.firebase?.database?.ref && window.firebase?.database?.set) {
-                const playerRef = window.firebase.database.ref(this.database, `players/${playerId}`);
-                await window.firebase.database.set(playerRef, playerRecord);
-            }
-            
-            console.log('✅ Player initialized:', playerId);
-            return playerId;
-        } catch (error) {
-            console.error('❌ Failed to initialize player:', error);
-            throw error;
-        }
-    }
-
-    async getNextSequence() {
-        try {
-            if (this.database && window.firebase?.database?.ref) {
-                const counterRef = window.firebase.database.ref(this.database, 'counters/players');
-                const snapshot = await window.firebase.database.get(counterRef);
-                const current = (snapshot.val() || 0) + 1;
-                await window.firebase.database.set(counterRef, current);
-                return current;
-            }
-            return Date.now();
-        } catch (error) {
-            console.error('❌ Failed to get sequence number:', error);
-            return Date.now();
-        }
-    }
-}
-
-// Export configuration and functions
-const config = {
-    // Initialize player ID on page load
-    currentPlayerId: null,
-
-    // Function to initialize player
-    async initializePlayer(playerData) {
-        try {
-            const playerManager = new PlayerDataManager();
-            this.currentPlayerId = await playerManager.initializePlayer(playerData);
-            console.log('✅ Player initialized:', this.currentPlayerId);
-            return true;
-        } catch (error) {
-            console.error('❌ Failed to initialize player:', error);
-            return false;
-        }
-    },
-
-    // Update quiz result
-    async updateQuizResult(result) {
-        if (!this.currentPlayerId) {
-            console.error('❌ No active player');
-            return;
-        }
-
-        try {
-            if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
-                const database = FirebaseConfig.getDatabase();
-                if (database && window.firebase?.database?.ref && window.firebase?.database?.update) {
-                    const playerRef = window.firebase.database.ref(database, `players/${this.currentPlayerId}`);
-                    await window.firebase.database.update(playerRef, {
-                        score: result.score || result,
-                        lastUpdated: window.firebase?.database?.serverTimestamp ? window.firebase.database.serverTimestamp() : Date.now()
-                    });
-                    console.log('✅ Quiz result updated');
-                }
-            }
-        } catch (error) {
-            console.error('❌ Quiz update error:', error);
-        }
-    },
-
-    // Update wheel result
-    async updateWheelResult(prize) {
-        if (!this.currentPlayerId) {
-            console.error('❌ No active player');
-            return;
-        }
-
-        try {
-            if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
-                const database = FirebaseConfig.getDatabase();
-                if (database && window.firebase?.database?.ref && window.firebase?.database?.update) {
-                    const playerRef = window.firebase.database.ref(database, `players/${this.currentPlayerId}`);
-                    await window.firebase.database.update(playerRef, {
-                        prize: prize,
-                        lastUpdated: window.firebase?.database?.serverTimestamp ? window.firebase.database.serverTimestamp() : Date.now()
-                    });
-                    console.log('✅ Wheel result updated');
-                }
-            }
-        } catch (error) {
-            console.error('❌ Wheel update error:', error);
-        }
-    },
-
-    // Update final choice
-    async updateFinalChoice(decision) {
-        if (!this.currentPlayerId) {
-            console.error('❌ No active player');
-            return;
-        }
-
-        try {
-            if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
-                const database = FirebaseConfig.getDatabase();
-                if (database && window.firebase?.database?.ref && window.firebase?.database?.update) {
-                    const playerRef = window.firebase.database.ref(database, `players/${this.currentPlayerId}`);
-                    await window.firebase.database.update(playerRef, {
-                        finalDecision: decision,
-                        lastUpdated: window.firebase?.database?.serverTimestamp ? window.firebase.database.serverTimestamp() : Date.now()
-                    });
-                    console.log('✅ Final choice updated');
-                }
-            }
-        } catch (error) {
-            console.error('❌ Final choice update error:', error);
-        }
-    }
-};
-
 // Test connection khi load trang (chỉ cho admin)
 if (window.location.search.indexOf('student=true') === -1) {
     // Chỉ test khi không phải trang học sinh
@@ -561,10 +260,3 @@ if (window.location.search.indexOf('student=true') === -1) {
         }, 1000);
     });
 }
-
-
-
-
-
-
-
