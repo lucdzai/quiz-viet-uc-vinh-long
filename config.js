@@ -116,8 +116,7 @@ const config = {
     // Update quiz result with validation
     async updateQuizResult(result) {
         if (!this.currentPlayerId) {
-            console.error('❌ No active player');
-            return;
+            throw new Error('No active player');
         }
 
         try {
@@ -134,14 +133,14 @@ const config = {
             }
         } catch (error) {
             console.error('❌ Quiz update error:', error);
+            throw error;
         }
     },
 
     // Update wheel result with prize name mapping
     async updateWheelResult(prize) {
         if (!this.currentPlayerId) {
-            console.error('❌ No active player');
-            return;
+            throw new Error('No active player');
         }
 
         try {
@@ -158,14 +157,14 @@ const config = {
             }
         } catch (error) {
             console.error('❌ Wheel update error:', error);
+            throw error;
         }
     },
 
     // Update final choice with boolean conversion
     async updateFinalChoice(decision) {
         if (!this.currentPlayerId) {
-            console.error('❌ No active player');
-            return;
+            throw new Error('No active player');
         }
 
         try {
@@ -182,6 +181,7 @@ const config = {
             }
         } catch (error) {
             console.error('❌ Final choice update error:', error);
+            throw error;
         }
     }
 };

@@ -3,16 +3,6 @@ class AdminPanel {
         this.database = null;
         this.playersRef = null;
         this.playersList = new Map();
-        
-        // Prize name mapping
-        this.prizeNames = {
-            'prize1': 'Học bổng 100%',
-            'prize2': 'Học bổng 50%',
-            'prize3': 'Học bổng 25%',
-            'prize4': 'Quà tặng',
-            'none': 'Không trúng thưởng'
-        };
-
         this.initialize();
     }
 
@@ -30,13 +20,9 @@ class AdminPanel {
                     
                     // Listen for real-time updates
                     this.onValue(this.playersRef, (snapshot) => {
-                        const data = snapshot.val();
-                        if (data) {
-                            this.updatePlayersList(data);
-                            this.renderPlayersTable();
-                        } else {
-                            this.renderPlayersTable(); // This will show empty message
-                        }
+                        const data = snapshot.val() || {};
+                        this.updatePlayersList(data);
+                        this.renderPlayersTable();
                     });
                 }
             }
@@ -48,11 +34,69 @@ class AdminPanel {
         }
     }
 
+    updatePlayersList(data) {
+        const seenIds = new Set();
+        this.playersList.clear();
+        
+        // Sort by timestamp first
+        const sortedEntries = Object.entries(data)
+            .sort(([,a], [,b]) => {
+                const timeA = new Date(a.startTime).getTime();
+                const timeB = new Date(b.startTime).getTime();
+                return timeA - timeB;
+            });
+
+        // Add only unique entries based on phone number
+        sortedEntries.forEach(([id, player]) => {
+            if (!seenIds.has(player.phone)) {
+                seenIds.add(player.phone);
+                this.playersList.set(id, {
+                    id,
+                    ...player
+                });
+            }
+        });
+    }
+
+    renderPlayersTable() {
+        const tbody = document.getElementById('playersTableBody');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+        
+        // Sort by STT
+        const sortedPlayers = Array.from(this.playersList.values())
+            .sort((a, b) => (Number(a.stt) || 0) - (Number(b.stt) || 0));
+
+        sortedPlayers.forEach(player => {
+            if (player && player.id && !tbody.querySelector(`[data-player-id="${player.id}"]`)) {
+                const row = document.createElement('tr');
+                row.dataset.playerId = player.id;
+                
+                // Format all fields
+                row.innerHTML = `
+                    <td>${this.formatValue(player.stt, 'number')}</td>
+                    <td>${this.formatValue(player.startTime, 'timestamp')}</td>
+                    <td>${this.formatValue(player.name, 'text')}</td>
+                    <td>${this.formatValue(player.phone, 'text')}</td>
+                    <td>${this.formatValue(player.course, 'text')}</td>
+                    <td>${this.formatValue(player.score, 'score')}</td>
+                    <td>${this.formatValue(player.prize, 'prize')}</td>
+                    <td>${this.formatValue(player.finalDecision, 'decision')}</td>
+                `;
+                tbody.appendChild(row);
+            }
+        });
+    }
+
     // Format display values
     formatValue(value, type) {
         if (value === null || value === undefined) return '';
         
         switch (type) {
+            case 'number':
+                return Number(value) || 0;
+                
             case 'timestamp':
                 try {
                     const date = value instanceof Date ? value : new Date(value);
@@ -68,11 +112,14 @@ class AdminPanel {
                     return '';
                 }
             
-            case 'prize':
-                return this.prizeNames[value] || value;
+            case 'text':
+                return String(value || '');
             
             case 'score':
-                return Number(value).toString() || '0';
+                return Number(value) || 0;
+                
+            case 'prize':
+                return String(value || '');
                 
             case 'decision':
                 return value === true ? 'Đồng ý' : 
@@ -81,19 +128,6 @@ class AdminPanel {
             default:
                 return String(value || '');
         }
-    }
-
-    // Update players list without duplicates
-    updatePlayersList(data) {
-        this.playersList.clear();
-        Object.entries(data).forEach(([id, player]) => {
-            if (!this.playersList.has(id)) {
-                this.playersList.set(id, {
-                    id,
-                    ...player
-                });
-            }
-        });
     }
 
     ref(database, path) {
@@ -114,41 +148,6 @@ class AdminPanel {
         if (ref && window.firebase && window.firebase.database && window.firebase.database.onValue) {
             return window.firebase.database.onValue(ref, callback);
         }
-    }
-
-    // Render table with formatted values
-    renderPlayersTable() {
-        const tbody = document.getElementById('playersTableBody');
-        if (!tbody) return;
-
-        tbody.innerHTML = '';
-        
-        // Check if we have data
-        if (this.playersList.size === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">Chưa có dữ liệu người chơi</td></tr>';
-            return;
-        }
-
-        const sortedPlayers = Array.from(this.playersList.values())
-            .sort((a, b) => (Number(a.stt) || 0) - (Number(b.stt) || 0));
-
-        sortedPlayers.forEach(player => {
-            if (!tbody.querySelector(`[data-player-id="${player.id}"]`)) {
-                const row = document.createElement('tr');
-                row.dataset.playerId = player.id;
-                row.innerHTML = `
-                    <td>${this.formatValue(player.stt, 'number')}</td>
-                    <td>${this.formatValue(player.startTime, 'timestamp')}</td>
-                    <td>${this.formatValue(player.name, 'text')}</td>
-                    <td>${this.formatValue(player.phone, 'text')}</td>
-                    <td>${this.formatValue(player.course, 'text')}</td>
-                    <td>${this.formatValue(player.score, 'score')}</td>
-                    <td>${this.formatValue(player.prize, 'prize')}</td>
-                    <td>${this.formatValue(player.finalDecision, 'decision')}</td>
-                `;
-                tbody.appendChild(row);
-            }
-        });
     }
 
     showError(message) {

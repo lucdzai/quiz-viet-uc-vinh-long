@@ -603,20 +603,16 @@ async function submitQuiz() {
         }
     });
     
-    // Lưu kết quả vào database
+    // Lưu kết quả vào database using config method
     try {
-        // Use enhanced StudentData service if available, fallback to Database
-        if (typeof StudentData !== 'undefined' && StudentData.updateQuizResult) {
-            await StudentData.updateQuizResult(userId, userScore, userAnswers);
-        } else {
-            await Database.updateQuizResult(userId, userScore, userAnswers);
-            showNotification('✅ Đã lưu kết quả quiz!', 'success');
-        }
+        await config.updateQuizResult({
+            score: userScore,
+            answers: userAnswers
+        });
+        showNotification('✅ Đã lưu kết quả quiz!', 'success');
     } catch (error) {
-        console.error('Lỗi lưu kết quả quiz:', error);
-        if (typeof StudentData === 'undefined') {
-            showNotification('⚠️ Lưu kết quả offline', 'warning');
-        }
+        console.error('❌ Quiz update error:', error);
+        showNotification('⚠️ Lưu kết quả offline', 'warning');
     }
     
     // Lưu vào currentUser
@@ -913,7 +909,7 @@ function spinWheel() {
 }
 
 // Hiển thị kết quả vòng quay
-function showWheelResult(prize) {
+async function showWheelResult(prize) {
     const resultDiv = document.getElementById('wheel-result');
     const prizeText = document.getElementById('prize-text');
     
@@ -923,18 +919,17 @@ function showWheelResult(prize) {
     // Confetti effect
     showConfetti();
     
-    // Lưu kết quả vòng quay
+    // Lưu kết quả vòng quay using config method
     currentUser.prize = prize.name;
     currentUser.wheelCompletedAt = new Date().toISOString();
     
-    // Lưu vào database
-    Database.updateWheelResult(userId, prize).then(result => {
-        if (result.success) {
-            showNotification('✅ Đã lưu kết quả vòng quay!', 'success');
-        }
-    }).catch(error => {
+    try {
+        await config.updateWheelResult(prize.name);
+        showNotification('✅ Đã lưu kết quả vòng quay!', 'success');
+    } catch (error) {
+        console.error('❌ Wheel update error:', error);
         showNotification('⚠️ Lưu kết quả offline', 'warning');
-    });
+    }
 }
 
 // Sound effect cho vòng quay
@@ -1240,7 +1235,7 @@ function confirmPrizeRegistration() {
 }
 
 // Màn hình cuối - thông tin liên hệ và khóa học
-function showFinalScreen(userChoice = 'completed') {
+async function showFinalScreen(userChoice = 'completed') {
     document.getElementById('result-container').style.display = 'none';
     document.getElementById('wheel-container').style.display = 'none';
     document.getElementById('quiz-container').style.display = 'none';
@@ -1331,15 +1326,13 @@ function showFinalScreen(userChoice = 'completed') {
     
     container.innerHTML = html;
     
-    // Lưu lựa chọn cuối vào database với choice thực tế
-    Database.updateFinalChoice(userId, userChoice, {
-        completedAt: new Date().toISOString(),
-        finalScore: currentUser.score,
-        finalPrize: currentUser.prize || 'none',
-        registrationDecision: userChoice // Thêm field mới để tracking quyết định
-    }).catch(error => {
-        console.error('Lỗi lưu lựa chọn cuối:', error);
-    });
+    // Lưu lựa chọn cuối vào database với choice thực tế using config method
+    try {
+        await config.updateFinalChoice(userChoice === 'register');
+        console.log('✅ Final decision saved');
+    } catch (error) {
+        console.error('❌ Final choice error:', error);
+    }
     
     // Cập nhật currentUser với choice
     currentUser.finalChoice = userChoice;
