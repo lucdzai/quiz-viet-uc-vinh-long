@@ -16,14 +16,6 @@ class AdminPanel {
         this.isOnline = false;
         this.charts = {};
         this.realtimeUnsubscribe = null;
-        
-        // Bind methods to maintain context
-        this.init = this.init.bind(this);
-        this.refreshDashboard = this.refreshDashboard.bind(this);
-        this.loadUserData = this.loadUserData.bind(this);
-        this.displayUserData = this.displayUserData.bind(this);
-        this.formatDateTime = this.formatDateTime.bind(this);
-        this.formatDisplayData = this.formatDisplayData.bind(this);
     }
 
     /**
@@ -68,6 +60,73 @@ class AdminPanel {
         
         // Update system info
         this.updateSystemInfo();
+    }
+
+    /**
+     * Set up real-time listeners for Firebase
+     */
+    setupRealtimeListeners() {
+        console.log('🔥 Setting up real-time listeners...');
+        
+        const trySetupListeners = (attempts = 0) => {
+            if (typeof window.FirebaseFallback !== 'undefined') {
+                try {
+                    const status = window.FirebaseFallback.getConnectionStatus();
+                    if (status.firebaseAvailable && status.isOnline) {
+                        this.realtimeUnsubscribe = window.FirebaseFallback.onDataChange((update) => {
+                            console.log('🔥 Real-time update received:', update.type);
+                            
+                            if (update.type === 'users') {
+                                this.userData = update.data;
+                                if (this.currentSection === 'data') {
+                                    this.displayUserData(this.userData);
+                                }
+                                if (this.currentSection === 'dashboard') {
+                                    this.updateRecentActivity();
+                                }
+                            } else if (update.type === 'stats') {
+                                this.stats = {
+                                    success: true,
+                                    ...update.data,
+                                    source: 'firebase_realtime'
+                                };
+                                if (this.currentSection === 'dashboard') {
+                                    this.updateStatsDisplay();
+                                    this.updateStatsChart();
+                                }
+                            }
+                        });
+                        
+                        console.log('✅ Firebase real-time listeners active');
+                        this.showNotification('🔥 Real-time updates enabled', 'success');
+                    } else {
+                        console.log('ℹ️ Real-time listeners not available (Firebase not accessible)');
+                        this.showNotification('ℹ️ Chế độ offline - sử dụng polling', 'info');
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ Failed to set up Firebase real-time listeners:', error);
+                }
+            } else if (attempts < 20) {
+                setTimeout(() => trySetupListeners(attempts + 1), 250);
+            } else {
+                console.log('ℹ️ Real-time listeners not available (FirebaseFallback not ready after 20 attempts)');
+                this.showNotification('ℹ️ Mode polling (không real-time)', 'info');
+            }
+        };
+        
+        trySetupListeners();
+    }
+
+    /**
+     * Clean up real-time listeners
+     */
+    cleanupRealtimeListeners() {
+        if (this.realtimeUnsubscribe) {
+            this.realtimeUnsubscribe();
+            this.realtimeUnsubscribe = null;
+            console.log('🔥 Firebase real-time listeners cleaned up');
+        }
     }
 
     /**
@@ -929,6 +988,156 @@ class AdminPanel {
         
         this.downloadFile(JSON.stringify(backup, null, 2), `backup-${new Date().toISOString().split('T')[0]}.json`, 'application/json');
         this.showNotification('Đã tạo file backup', 'success');
+    }
+
+    /**
+     * Refresh dashboard data
+     */
+    async refreshDashboard() {
+        console.log('🔄 Refreshing dashboard...');
+        const refreshButton = document.querySelector('.refresh-btn');
+        
+        if (refreshButton) {
+            refreshButton.disabled = true;
+            refreshButton.textContent = '🔄 Đang tải...';
+        }
+        
+        try {
+            await this.checkConnection();
+            await this.loadStats();
+            await this.loadUserData();
+            
+            if (this.currentSection === 'dashboard') {
+                this.updateStatsDisplay();
+                this.updateRecentActivity();
+                this.updateStatsChart();
+            }
+            
+            this.showNotification('✅ Dữ liệu đã được cập nhật', 'success');
+            
+        } catch (error) {
+            console.error('Error refreshing dashboard:', error);
+            this.showNotification('⚠️ Có lỗi khi cập nhật dữ liệu: ' + error.message, 'error');
+        } finally {
+            if (refreshButton) {
+                refreshButton.disabled = false;
+                refreshButton.textContent = '🔄 Kiểm tra';
+            }
+        }
+    }
+
+    /**
+     * Load statistics with improved error handling
+     */
+    async loadStats() {
+        try {
+            console.log(`📊 Loading stats from ${Database.getCurrentDatabaseType()}...`);
+            this.stats = await Database.getStats();
+            console.log('✅ Stats loaded:', this.stats);
+            
+        } catch (error) {
+            console.error('❌ Error loading stats:', error);
+            this.showNotification('Lỗi khi tải thống kê: ' + error.message, 'error');
+            
+            // Emergency fallback - calculate from current userData
+            if (this.userData && this.userData.length > 0) {
+                this.stats = {
+                    success: true,
+                    totalParticipants: this.userData.length,
+                    completedQuiz: this.userData.filter(u => u.score !== undefined).length,
+                    passedQuiz: this.userData.filter(u => u.score >= CONFIG.QUIZ_SETTINGS.PASS_SCORE).length,
+                    registeredUsers: this.userData.filter(u => u.choice === 'register').length,
+                    declinedUsers: this.userData.filter(u => u.choice === 'decline').length,
+                    source: 'calculated from current data'
+                };
+            } else {
+                this.stats = {
+                    success: false,
+                    totalParticipants: 0,
+                    completedQuiz: 0,
+                    passedQuiz: 0,
+                    registeredUsers: 0,
+                    declinedUsers: 0
+                };
+            }
+        }
+    }
+
+    /**
+     * Load user data with enhanced error handling
+     */
+    async loadUserData() {
+        this.showLoading('Đang tải dữ liệu người dùng...');
+        
+        try {
+            console.log(`🔄 Loading user data from ${Database.getCurrentDatabaseType()}...`);
+            const result = await Database.getAllUserData();
+            
+            if (result.success && result.data) {
+                this.userData = result.data;
+                console.log(`✅ Loaded ${this.userData.length} records from ${result.source}`);
+                
+                this.updateDataSourceIndicator(result.source);
+                this.displayUserData(this.userData);
+                this.hideLoading();
+                
+                if (this.userData.length === 0) {
+                    this.showNotification('ℹ️ Chưa có dữ liệu nào. Dữ liệu từ học sinh sẽ hiển thị khi họ làm quiz.', 'info');
+                }
+                return;
+            } else {
+                throw new Error('Failed to load user data');
+            }
+            
+        } catch (error) {
+            console.error('Error loading user data:', error);
+            this.hideLoading();
+            this.showNotification('Lỗi khi tải dữ liệu người dùng: ' + error.message, 'error');
+            
+            // Emergency fallback to localStorage
+            try {
+                this.userData = JSON.parse(localStorage.getItem('quizUsers') || '[]');
+                this.updateDataSourceIndicator('localStorage (emergency fallback)');
+                this.displayUserData(this.userData);
+            } catch (fallbackError) {
+                console.error('Even localStorage fallback failed:', fallbackError);
+                this.userData = [];
+                this.displayUserData(this.userData);
+            }
+        }
+    }
+
+    /**
+     * Display user data in table with improved formatting
+     */
+    displayUserData(users) {
+        const tbody = document.getElementById('user-data-body');
+        if (!tbody) return;
+        
+        if (users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem;">Chưa có dữ liệu</td></tr>';
+            return;
+        }
+        
+        let html = '';
+        users.forEach(user => {
+            const formatted = this.formatDisplayData(user);
+            
+            html += `
+                <tr>
+                    <td>${formatted.timestamp}</td>
+                    <td>${formatted.name}</td>
+                    <td>${formatted.phone}</td>
+                    <td>${formatted.classType}</td>
+                    <td>${formatted.score}</td>
+                    <td>${formatted.prize}</td>
+                    <td>${formatted.choice}</td>
+                    <td>${formatted.status}</td>
+                </tr>
+            `;
+        });
+        
+        tbody.innerHTML = html;
     }
 }
 
