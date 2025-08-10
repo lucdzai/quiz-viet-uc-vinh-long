@@ -33,15 +33,15 @@ const CONFIG = {
 const Database = {
     // Check if Firebase is available and configured
     isFirebaseAvailable() {
-        return typeof FirebaseConfig !== 'undefined' && 
-               FirebaseConfig.isFirebaseConfigured() &&
-               FirebaseConfig.getConnectionStatus().initialized;
+        return typeof window !== 'undefined' && 
+               typeof window.FirebaseConfig !== 'undefined' && 
+               window.FirebaseConfig.getDatabase() !== null;
     },
 
     // Get current database type
     getCurrentDatabaseType() {
         if (this.isFirebaseAvailable()) {
-            const database = FirebaseConfig.getDatabase();
+            const database = window.FirebaseConfig.getDatabase();
             return database ? 'firebase' : 'localStorage';
         }
         return 'localStorage';
@@ -51,7 +51,7 @@ const Database = {
     async saveUserData(userData) {
         try {
             if (this.isFirebaseAvailable()) {
-                const database = FirebaseConfig.getDatabase();
+                const database = window.FirebaseConfig.getDatabase();
                 if (database) {
                     console.log('🔄 Saving to Firebase...');
                     
@@ -91,7 +91,7 @@ const Database = {
     async updateQuizResult(userId, score, answers) {
         try {
             if (this.isFirebaseAvailable()) {
-                const database = FirebaseConfig.getDatabase();
+                const database = window.FirebaseConfig.getDatabase();
                 if (database) {
                     const userRef = window.firebase.database.ref(database, `users/${userId}`);
                     await window.firebase.database.update(userRef, {
@@ -120,7 +120,7 @@ const Database = {
     async updateWheelResult(userId, prize) {
         try {
             if (this.isFirebaseAvailable()) {
-                const database = FirebaseConfig.getDatabase();
+                const database = window.FirebaseConfig.getDatabase();
                 if (database) {
                     const userRef = window.firebase.database.ref(database, `users/${userId}`);
                     await window.firebase.database.update(userRef, {
@@ -148,7 +148,7 @@ const Database = {
     async updateFinalChoice(userId, choice, registrationData) {
         try {
             if (this.isFirebaseAvailable()) {
-                const database = FirebaseConfig.getDatabase();
+                const database = window.FirebaseConfig.getDatabase();
                 if (database) {
                     const userRef = window.firebase.database.ref(database, `users/${userId}`);
                     await window.firebase.database.update(userRef, {
@@ -177,7 +177,7 @@ const Database = {
     async getStats() {
         try {
             if (this.isFirebaseAvailable()) {
-                const database = FirebaseConfig.getDatabase();
+                const database = window.FirebaseConfig.getDatabase();
                 if (database) {
                     const usersRef = window.firebase.database.ref(database, 'users');
                     const snapshot = await window.firebase.database.get(usersRef);
@@ -224,7 +224,7 @@ const Database = {
     async getAllUserData() {
         try {
             if (this.isFirebaseAvailable()) {
-                const database = FirebaseConfig.getDatabase();
+                const database = window.FirebaseConfig.getDatabase();
                 if (database) {
                     const usersRef = window.firebase.database.ref(database, 'users');
                     const snapshot = await window.firebase.database.get(usersRef);
@@ -340,8 +340,8 @@ const Database = {
             }
             
             // Use Firebase config's test connection method
-            if (typeof FirebaseConfig.testFirebaseConnection === 'function') {
-                const result = await FirebaseConfig.testFirebaseConnection();
+            if (typeof window.FirebaseConfig.testDatabaseConnection === 'function') {
+                const result = await window.FirebaseConfig.testDatabaseConnection();
                 console.log(`${result ? '🟢' : '🔴'} Firebase connection: ${result ? 'ONLINE' : 'OFFLINE'}`);
                 return result;
             }
