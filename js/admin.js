@@ -59,16 +59,17 @@ class AdminPanel {
     }
 
     updatePlayersList(data) {
-        // Clear existing data
+        // Clear existing data first
         this.playersList.clear();
         
-        // Process and store new data
-        Object.entries(data).forEach(([id, playerData]) => {
-            this.playersList.set(id, {
-                ...playerData,
-                formattedStartTime: this.formatTimestamp(playerData.startTime),
-                formattedLastUpdate: this.formatTimestamp(playerData.lastUpdated)
-            });
+        // Add each player only once, using their ID as key
+        Object.entries(data).forEach(([id, player]) => {
+            if (!this.playersList.has(id)) {
+                this.playersList.set(id, {
+                    id,
+                    ...player
+                });
+            }
         });
     }
 
@@ -89,18 +90,22 @@ class AdminPanel {
             .sort((a, b) => (a.stt || 0) - (b.stt || 0));
 
         sortedPlayers.forEach(player => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${player.stt || ''}</td>
-                <td>${this.formatTimestamp(player.startTime)}</td>
-                <td>${player.name || ''}</td>
-                <td>${player.phone || ''}</td>
-                <td>${player.course || ''}</td>
-                <td>${player.score || 0}</td>
-                <td>${player.prize || ''}</td>
-                <td>${player.finalDecision || ''}</td>
-            `;
-            tbody.appendChild(row);
+            // Only add each player once
+            if (!tbody.querySelector(`[data-player-id="${player.id}"]`)) {
+                const row = document.createElement('tr');
+                row.dataset.playerId = player.id;
+                row.innerHTML = `
+                    <td>${player.stt || ''}</td>
+                    <td>${this.formatTimestamp(player.startTime)}</td>
+                    <td>${player.name || ''}</td>
+                    <td>${player.phone || ''}</td>
+                    <td>${player.course || ''}</td>
+                    <td>${player.score || 0}</td>
+                    <td>${player.prize || ''}</td>
+                    <td>${player.finalDecision || ''}</td>
+                `;
+                tbody.appendChild(row);
+            }
         });
     }
 

@@ -453,23 +453,72 @@ class PlayerDataManager {
 
 // Export configuration and functions
 const config = {
-    // Initialize player ID on page load
-    currentPlayerId: null,
+    // Store current player ID in localStorage to persist across page reloads
+    get currentPlayerId() {
+        return localStorage.getItem('currentPlayerId');
+    },
+    set currentPlayerId(id) {
+        if (id) {
+            localStorage.setItem('currentPlayerId', id);
+        } else {
+            localStorage.removeItem('currentPlayerId');
+        }
+    },
 
-    // Function to initialize player
     async initializePlayer(playerData) {
         try {
-            const playerManager = new PlayerDataManager();
-            this.currentPlayerId = await playerManager.initializePlayer(playerData);
-            console.log('✅ Player initialized:', this.currentPlayerId);
-            return true;
+            const timestamp = Date.now();
+            const playerId = `player_${timestamp}`;
+            
+            if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
+                const database = FirebaseConfig.getDatabase();
+                if (database && window.firebase?.database?.ref && window.firebase?.database?.set) {
+                    const playerRef = window.firebase.database.ref(database, `players/${playerId}`);
+                    await window.firebase.database.set(playerRef, {
+                        id: playerId,
+                        startTime: window.firebase?.database?.serverTimestamp ? window.firebase.database.serverTimestamp() : timestamp,
+                        stt: await this.getNextSequence(),
+                        name: playerData.name || '',
+                        phone: playerData.phone || '',
+                        course: playerData.course || '',
+                        score: 0,
+                        prize: '',
+                        finalDecision: '',
+                        lastUpdated: window.firebase?.database?.serverTimestamp ? window.firebase.database.serverTimestamp() : timestamp
+                    });
+
+                    this.currentPlayerId = playerId;
+                    console.log('✅ Player initialized:', playerId);
+                    return true;
+                }
+            }
+            return false;
         } catch (error) {
             console.error('❌ Failed to initialize player:', error);
             return false;
         }
     },
 
-    // Update quiz result
+    async getNextSequence() {
+        try {
+            if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
+                const database = FirebaseConfig.getDatabase();
+                if (database && window.firebase?.database?.ref) {
+                    const counterRef = window.firebase.database.ref(database, 'counters/players');
+                    const snapshot = await window.firebase.database.get(counterRef);
+                    const current = (snapshot.val() || 0) + 1;
+                    await window.firebase.database.set(counterRef, current);
+                    return current;
+                }
+            }
+            return Date.now();
+        } catch (error) {
+            console.error('❌ Failed to get sequence number:', error);
+            return Date.now();
+        }
+    },
+
+    // Fix update methods to use stored player ID
     async updateQuizResult(result) {
         if (!this.currentPlayerId) {
             console.error('❌ No active player');
@@ -493,7 +542,6 @@ const config = {
         }
     },
 
-    // Update wheel result
     async updateWheelResult(prize) {
         if (!this.currentPlayerId) {
             console.error('❌ No active player');
@@ -517,7 +565,6 @@ const config = {
         }
     },
 
-    // Update final choice
     async updateFinalChoice(decision) {
         if (!this.currentPlayerId) {
             console.error('❌ No active player');
