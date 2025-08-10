@@ -418,7 +418,7 @@ class PlayerDataManager {
                 score: 0,
                 prize: '',
                 finalDecision: '',
-                lastUpdated: serverTimestamp ? serverTimestamp() : timestamp
+                lastUpdated: window.firebase?.database?.serverTimestamp ? window.firebase.database.serverTimestamp() : timestamp
             };
 
             if (this.database && window.firebase?.database?.ref && window.firebase?.database?.set) {
@@ -483,7 +483,7 @@ const config = {
                     const playerRef = window.firebase.database.ref(database, `players/${this.currentPlayerId}`);
                     await window.firebase.database.update(playerRef, {
                         score: result.score || result,
-                        lastUpdated: serverTimestamp ? serverTimestamp() : Date.now()
+                        lastUpdated: window.firebase?.database?.serverTimestamp ? window.firebase.database.serverTimestamp() : Date.now()
                     });
                     console.log('✅ Quiz result updated');
                 }
@@ -507,7 +507,7 @@ const config = {
                     const playerRef = window.firebase.database.ref(database, `players/${this.currentPlayerId}`);
                     await window.firebase.database.update(playerRef, {
                         prize: prize,
-                        lastUpdated: serverTimestamp ? serverTimestamp() : Date.now()
+                        lastUpdated: window.firebase?.database?.serverTimestamp ? window.firebase.database.serverTimestamp() : Date.now()
                     });
                     console.log('✅ Wheel result updated');
                 }
@@ -531,7 +531,7 @@ const config = {
                     const playerRef = window.firebase.database.ref(database, `players/${this.currentPlayerId}`);
                     await window.firebase.database.update(playerRef, {
                         finalDecision: decision,
-                        lastUpdated: serverTimestamp ? serverTimestamp() : Date.now()
+                        lastUpdated: window.firebase?.database?.serverTimestamp ? window.firebase.database.serverTimestamp() : Date.now()
                     });
                     console.log('✅ Final choice updated');
                 }
