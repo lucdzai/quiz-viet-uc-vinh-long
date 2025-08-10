@@ -49,6 +49,22 @@ async function initializeFirebase(retryCount = 3) {
             
             database = window.firebase.database.getDatabase();
             
+            // Add offline persistence
+            try {
+                if (window.firebase.database.enableIndexedDbPersistence) {
+                    await window.firebase.database.enableIndexedDbPersistence(database);
+                    console.log('✅ Offline persistence enabled');
+                }
+            } catch (persistenceError) {
+                if (persistenceError.code === 'failed-precondition') {
+                    console.warn('⚠️ Multiple tabs open, persistence can only be enabled in one tab at a time.');
+                } else if (persistenceError.code === 'unimplemented') {
+                    console.warn('⚠️ Browser does not support offline persistence');
+                } else {
+                    console.warn('⚠️ Failed to enable offline persistence:', persistenceError);
+                }
+            }
+            
             // Test connection
             const connRef = window.firebase.database.ref(database, '.info/connected');
             await new Promise((resolve, reject) => {
