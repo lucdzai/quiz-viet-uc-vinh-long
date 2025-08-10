@@ -243,6 +243,39 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Initialize application based on current page
     initializeApplication();
+
+    // Enhanced player form handling
+    const form = document.getElementById('info-form');
+    if (form) {
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            
+            try {
+                const playerData = {
+                    name: form.querySelector('#student-name').value.trim(),
+                    phone: form.querySelector('#student-phone').value.trim(),
+                    course: form.querySelector('#student-class').value.trim(),
+                    startTime: new Date().toISOString(),
+                    score: 0,
+                    prize: '',
+                    finalDecision: null
+                };
+
+                if (!playerData.name || !playerData.phone || !playerData.course) {
+                    alert('Vui lòng điền đầy đủ thông tin!');
+                    return;
+                }
+
+                if (await config.initializePlayer(playerData)) {
+                    console.log('✅ Đã lưu thông tin:', playerData);
+                    showQuizSection();
+                }
+            } catch (error) {
+                console.error('❌ Lỗi:', error);
+                alert('Có lỗi xảy ra: ' + error.message);
+            }
+        };
+    }
 });
 
 // Khởi tạo ứng dụng
@@ -394,188 +427,8 @@ async function updateStats() {
     }
 }
 
-// Xử lý form thông tin học sinh
-const infoForm = document.getElementById('info-form');
-if (infoForm) {
-    infoForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-    
-    // Hiển thị loading
-    document.getElementById('loading').style.display = 'block';
-    
-    // Prepare player data for config.initializePlayer
-    const playerData = {
-        name: document.getElementById('student-name').value.trim(),
-        phone: document.getElementById('student-phone').value.trim(),
-        course: document.getElementById('student-class').value.trim()
-    };
-    
-    // Validate
-    if (!playerData.name || !playerData.phone || !playerData.course) {
-        alert('⚠️ Vui lòng điền đầy đủ thông tin!');
-        document.getElementById('loading').style.display = 'none';
-        return;
-    }
-    
-    // Validate số điện thoại
-    if (!/^[0-9]{10,11}$/.test(playerData.phone)) {
-        alert('⚠️ Số điện thoại không hợp lệ! Vui lòng nhập 10-11 số.');
-        document.getElementById('loading').style.display = 'none';
-        return;
-    }
-    
-    try {
-        // Use config.initializePlayer instead of Database.saveUserData
-        if (await config.initializePlayer(playerData)) {
-            console.log('✅ Player data saved successfully');
-            
-            // Update currentUser for backward compatibility
-            currentUser = {
-                name: playerData.name,
-                phone: playerData.phone,
-                classType: playerData.course,
-                timestamp: new Date().toISOString(),
-                userAgent: navigator.userAgent,
-                ipAddress: await getUserIP()
-            };
-            userId = config.currentPlayerId;
-            
-            // Ẩn loading và chuyển sang quiz
-            document.getElementById('loading').style.display = 'none';
-            showQuiz();
-            showNotification('✅ Đã lưu thông tin thành công!', 'success');
-        } else {
-            throw new Error('Failed to save player data');
-        }
-    } catch (error) {
-        console.error('❌ Error saving player data:', error);
-        document.getElementById('loading').style.display = 'none';
-        alert('Có lỗi xảy ra khi lưu thông tin. Vui lòng thử lại.');
-    }
-    });
-}
-
-// Lấy IP người dùng (để tracking)
-async function getUserIP() {
-    try {
-        const response = await fetch('https://api.ipify.org?format=json');
-        const data = await response.json();
-        return data.ip;
-    } catch (error) {
-        return 'unknown';
-    }
-}
-
-// Hiển thị thông báo
-function showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.textContent = message;
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: ${type === 'success' ? '#27ae60' : type === 'warning' ? '#f39c12' : '#3498db'};
-        color: white;
-        padding: 15px 20px;
-        border-radius: 10px;
-        z-index: 1000;
-        animation: slideInRight 0.3s ease;
-    `;
-    
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.remove();
-    }, 3000);
-}
-
-// Hiển thị quiz
-function showQuiz() {
-    document.getElementById('student-form').style.display = 'none';
-    document.getElementById('result-container').style.display = 'none';
-    document.getElementById('wheel-container').style.display = 'none';
-    document.getElementById('final-container').style.display = 'none';
-    document.getElementById('quiz-container').style.display = 'block';
-    
-    const questions = questionsByClass[currentUser.classType];
-    const container = document.getElementById('quiz-container');
-    
-    // Reset timer
-    timeRemaining = CONFIG.QUIZ_SETTINGS.TIME_LIMIT;
-    
-    let html = `
-        <div class="logo">
-            <img src="assets/logo.svg" alt="Logo Trung Tâm" class="center-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-            <div class="logo-fallback" style="display: none;">🎓</div>
-            <h2>📝 Bài Quiz - ${getClassDisplayName(currentUser.classType)}</h2>
-            <p>Chào <strong>${currentUser.name}</strong>! Trả lời 5 câu hỏi sau<br>
-            <small>(Cần đúng tối thiểu 3/5 để vào vòng quay may mắn)</small></p>
-        </div>
-        <div class="timer-container">
-            <div class="timer-display">
-                ⏰ Thời gian còn lại: <span id="timer-text">05:00</span>
-            </div>
-        </div>
-        <div class="progress-bar">
-            <div class="progress-fill" style="width: 0%" id="progress"></div>
-        </div>
-    `;
-    
-    questions.forEach((q, index) => {
-        html += `
-            <div class="question-container" id="question-${index}">
-                <div class="question-title">Câu ${index + 1}: ${q.question}</div>
-                <ul class="question-options">
-                    ${q.options.map((option, i) => `
-                        <li>
-                            <label>
-                                <input type="radio" name="q${index}" value="${i}" onchange="updateProgress()">
-                                ${String.fromCharCode(65 + i)}. ${option}
-                            </label>
-                        </li>
-                    `).join('')}
-                </ul>
-            </div>
-        `;
-    });
-    
-    html += '<button class="btn-primary" onclick="submitQuiz()" id="submit-btn" style="opacity: 0.5;" disabled>Hoàn thành tất cả câu hỏi để nộp bài 📤</button>';
-    container.innerHTML = html;
-    
-    // Bắt đầu timer
-    startQuizTimer();
-}
-
-// Cập nhật progress bar
-function updateProgress() {
-    const questions = questionsByClass[currentUser.classType];
-    let answered = 0;
-    
-    questions.forEach((q, index) => {
-        if (document.querySelector(`input[name="q${index}"]:checked`)) {
-            answered++;
-        }
-    });
-    
-    const progress = (answered / questions.length) * 100;
-    document.getElementById('progress').style.width = progress + '%';
-    
-    const submitBtn = document.getElementById('submit-btn');
-    if (answered === questions.length) {
-        submitBtn.disabled = false;
-        submitBtn.style.opacity = '1';
-        submitBtn.textContent = 'Nộp bài Quiz 📤';
-        submitBtn.style.animation = 'pulse 2s infinite';
-    } else {
-        submitBtn.disabled = true;
-        submitBtn.style.opacity = '0.5';
-        submitBtn.textContent = `Hoàn thành tất cả câu hỏi để nộp bài 📤 (${answered}/${questions.length})`;
-        submitBtn.style.animation = 'none';
-    }
-}
-
-// Nộp bài quiz
+// Enhanced submitQuiz function for better async handling
+async function submitQuiz() {
 async function submitQuiz() {
     // Dừng timer
     stopQuizTimer();
@@ -605,18 +458,14 @@ async function submitQuiz() {
     
     // Lưu kết quả vào database
     try {
-        // Use enhanced StudentData service if available, fallback to Database
-        if (typeof StudentData !== 'undefined' && StudentData.updateQuizResult) {
-            await StudentData.updateQuizResult(userId, userScore, userAnswers);
-        } else {
-            await Database.updateQuizResult(userId, userScore, userAnswers);
-            showNotification('✅ Đã lưu kết quả quiz!', 'success');
-        }
+        await config.updateQuizResult({
+            score: userScore,
+            timestamp: new Date().toISOString()
+        });
+        console.log('✅ Đã lưu điểm:', userScore);
     } catch (error) {
-        console.error('Lỗi lưu kết quả quiz:', error);
-        if (typeof StudentData === 'undefined') {
-            showNotification('⚠️ Lưu kết quả offline', 'warning');
-        }
+        console.error('❌ Lỗi lưu điểm:', error);
+        alert('Có lỗi khi lưu điểm: ' + error.message);
     }
     
     // Lưu vào currentUser
@@ -913,7 +762,7 @@ function spinWheel() {
 }
 
 // Hiển thị kết quả vòng quay
-function showWheelResult(prize) {
+async function showWheelResult(prize) {
     const resultDiv = document.getElementById('wheel-result');
     const prizeText = document.getElementById('prize-text');
     
@@ -927,14 +776,17 @@ function showWheelResult(prize) {
     currentUser.prize = prize.name;
     currentUser.wheelCompletedAt = new Date().toISOString();
     
-    // Lưu vào database
-    Database.updateWheelResult(userId, prize).then(result => {
-        if (result.success) {
-            showNotification('✅ Đã lưu kết quả vòng quay!', 'success');
-        }
-    }).catch(error => {
-        showNotification('⚠️ Lưu kết quả offline', 'warning');
-    });
+    // Lưu vào database với enhanced config
+    try {
+        await config.updateWheelResult({
+            prize: prize.name,
+            timestamp: new Date().toISOString()
+        });
+        console.log('✅ Đã lưu quà:', prize.name);
+    } catch (error) {
+        console.error('❌ Lỗi lưu quà:', error);
+        alert('Có lỗi khi lưu phần quà: ' + error.message);
+    }
 }
 
 // Sound effect cho vòng quay
@@ -1240,7 +1092,7 @@ function confirmPrizeRegistration() {
 }
 
 // Màn hình cuối - thông tin liên hệ và khóa học
-function showFinalScreen(userChoice = 'completed') {
+async function showFinalScreen(userChoice = 'completed') {
     document.getElementById('result-container').style.display = 'none';
     document.getElementById('wheel-container').style.display = 'none';
     document.getElementById('quiz-container').style.display = 'none';
@@ -1331,15 +1183,17 @@ function showFinalScreen(userChoice = 'completed') {
     
     container.innerHTML = html;
     
-    // Lưu lựa chọn cuối vào database với choice thực tế
-    Database.updateFinalChoice(userId, userChoice, {
-        completedAt: new Date().toISOString(),
-        finalScore: currentUser.score,
-        finalPrize: currentUser.prize || 'none',
-        registrationDecision: userChoice // Thêm field mới để tracking quyết định
-    }).catch(error => {
-        console.error('Lỗi lưu lựa chọn cuối:', error);
-    });
+    // Lưu lựa chọn cuối vào database với enhanced config
+    try {
+        await config.updateFinalChoice({
+            decision: userChoice === 'register',
+            timestamp: new Date().toISOString()
+        });
+        console.log('✅ Đã lưu quyết định:', userChoice);
+    } catch (error) {
+        console.error('❌ Lỗi lưu quyết định:', error);
+        alert('Có lỗi khi lưu quyết định: ' + error.message);
+    }
     
     // Cập nhật currentUser với choice
     currentUser.finalChoice = userChoice;

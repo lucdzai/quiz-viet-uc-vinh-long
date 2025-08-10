@@ -4,39 +4,35 @@ class AdminPanel {
         this.playersRef = null;
         this.playersList = new Map();
         
-        // Prize name mapping
         this.prizeNames = {
             'prize1': 'Học bổng 100%',
-            'prize2': 'Học bổng 50%',
-            'prize3': 'Học bổng 25%',
-            'prize4': 'Quà tặng',
-            'none': 'Không trúng thưởng'
+            'prize2': 'Học bổng 75%',
+            'prize3': 'Học bổng 50%',
+            'prize4': 'Học bổng 25%',
+            'prize5': 'Quà tặng đặc biệt'
         };
-
+        
         this.initialize();
     }
 
     async initialize() {
         try {
-            // Wait a bit for Firebase to be ready
             await new Promise(resolve => setTimeout(resolve, 500));
             
-            // Initialize Firebase
             if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
                 this.database = FirebaseConfig.getDatabase();
                 
-                if (this.database) {
-                    this.playersRef = this.ref(this.database, 'players');
+                if (this.database && window.firebase?.database?.ref && window.firebase?.database?.onValue) {
+                    this.playersRef = window.firebase.database.ref(this.database, 'players');
                     
-                    // Listen for real-time updates
-                    this.onValue(this.playersRef, (snapshot) => {
+                    window.firebase.database.onValue(this.playersRef, (snapshot) => {
                         const data = snapshot.val();
-                        if (data) {
-                            this.updatePlayersList(data);
-                            this.renderPlayersTable();
-                        } else {
-                            this.renderPlayersTable(); // This will show empty message
-                        }
+                        console.log('📊 Dữ liệu:', data);
+                        this.updatePlayersList(data);
+                        this.renderPlayersTable();
+                    }, (error) => {
+                        console.error('❌ Lỗi:', error);
+                        alert('Có lỗi khi tải dữ liệu. Vui lòng thử lại.');
                     });
                 }
             }
@@ -48,107 +44,104 @@ class AdminPanel {
         }
     }
 
-    // Format display values
-    formatValue(value, type) {
-        if (value === null || value === undefined) return '';
-        
-        switch (type) {
-            case 'timestamp':
-                try {
-                    const date = value instanceof Date ? value : new Date(value);
-                    return date.toLocaleString('vi-VN', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit'
-                    });
-                } catch {
-                    return '';
-                }
-            
-            case 'prize':
-                return this.prizeNames[value] || value;
-            
-            case 'score':
-                return Number(value).toString() || '0';
-                
-            case 'decision':
-                return value === true ? 'Đồng ý' : 
-                       value === false ? 'Từ chối' : '';
-                
-            default:
-                return String(value || '');
-        }
-    }
-
-    // Update players list without duplicates
     updatePlayersList(data) {
+        const seenPhones = new Set();
         this.playersList.clear();
-        Object.entries(data).forEach(([id, player]) => {
-            if (!this.playersList.has(id)) {
+
+        if (!data) return;
+
+        const sortedEntries = Object.entries(data)
+            .sort(([,a], [,b]) => {
+                const timeA = new Date(a.startTime || 0).getTime();
+                const timeB = new Date(b.startTime || 0).getTime();
+                return timeA - timeB;
+            });
+
+        sortedEntries.forEach(([id, player]) => {
+            if (!player) return;
+            
+            const phone = String(player.phone || '').trim();
+            if (!seenPhones.has(phone)) {
+                seenPhones.add(phone);
+                
                 this.playersList.set(id, {
                     id,
-                    ...player
+                    stt: player.stt || 0,
+                    startTime: this.formatTimestamp(player.startTime),
+                    name: player.name || 'Chưa có tên',
+                    phone: phone || 'Chưa có SĐT',
+                    course: player.course || 'Chưa chọn khóa học',
+                    score: Number(player.score || 0),
+                    prize: this.formatPrize(player.prize),
+                    finalDecision: this.formatDecision(player.finalDecision)
                 });
             }
         });
     }
 
-    ref(database, path) {
-        if (database && window.firebase && window.firebase.database && window.firebase.database.ref) {
-            return window.firebase.database.ref(database, path);
+    formatTimestamp(timestamp) {
+        if (!timestamp) return 'Chưa có thời gian';
+        try {
+            const date = typeof timestamp === 'object' ? 
+                new Date(timestamp.seconds * 1000) : 
+                new Date(timestamp);
+            
+            return date.toLocaleString('vi-VN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+        } catch (error) {
+            console.error('Lỗi định dạng thời gian:', error);
+            return 'Lỗi định dạng';
         }
-        // If using the mock, database might be the ref function itself
-        if (database && typeof database.ref === 'function') {
-            return database.ref(path);
-        }
-        return null;
     }
 
-    onValue(ref, callback) {
-        if (ref && typeof ref.onValue === 'function') {
-            return ref.onValue(callback);
-        }
-        if (ref && window.firebase && window.firebase.database && window.firebase.database.onValue) {
-            return window.firebase.database.onValue(ref, callback);
-        }
+    formatPrize(prize) {
+        if (!prize) return 'Chưa quay thưởng';
+        return this.prizeNames[prize] || prize;
     }
 
-    // Render table with formatted values
+    formatDecision(decision) {
+        if (decision === true) return 'Đồng ý';
+        if (decision === false) return 'Từ chối';
+        return 'Chưa quyết định';
+    }
+
     renderPlayersTable() {
         const tbody = document.getElementById('playersTableBody');
         if (!tbody) return;
 
         tbody.innerHTML = '';
         
-        // Check if we have data
-        if (this.playersList.size === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">Chưa có dữ liệu người chơi</td></tr>';
-            return;
-        }
-
         const sortedPlayers = Array.from(this.playersList.values())
-            .sort((a, b) => (Number(a.stt) || 0) - (Number(b.stt) || 0));
+            .sort((a, b) => a.stt - b.stt);
 
         sortedPlayers.forEach(player => {
-            if (!tbody.querySelector(`[data-player-id="${player.id}"]`)) {
-                const row = document.createElement('tr');
-                row.dataset.playerId = player.id;
-                row.innerHTML = `
-                    <td>${this.formatValue(player.stt, 'number')}</td>
-                    <td>${this.formatValue(player.startTime, 'timestamp')}</td>
-                    <td>${this.formatValue(player.name, 'text')}</td>
-                    <td>${this.formatValue(player.phone, 'text')}</td>
-                    <td>${this.formatValue(player.course, 'text')}</td>
-                    <td>${this.formatValue(player.score, 'score')}</td>
-                    <td>${this.formatValue(player.prize, 'prize')}</td>
-                    <td>${this.formatValue(player.finalDecision, 'decision')}</td>
-                `;
-                tbody.appendChild(row);
-            }
+            const row = document.createElement('tr');
+            row.dataset.playerId = player.id;
+            
+            row.innerHTML = `
+                <td class="text-center">${player.stt}</td>
+                <td class="text-center">${player.startTime}</td>
+                <td>${player.name}</td>
+                <td>${player.phone}</td>
+                <td>${player.course}</td>
+                <td class="text-center">${player.score}</td>
+                <td>${player.prize}</td>
+                <td class="text-center">${player.finalDecision}</td>
+            `;
+            tbody.appendChild(row);
         });
+
+        const totalPlayers = document.getElementById('totalPlayers');
+        if (totalPlayers) {
+            totalPlayers.textContent = sortedPlayers.length;
+        }
     }
 
     showError(message) {
@@ -160,7 +153,8 @@ class AdminPanel {
     }
 }
 
-// Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', function() {
-    new AdminPanel();
+// Initialize Admin Panel
+document.addEventListener('DOMContentLoaded', () => {
+    const adminPanel = new AdminPanel();
+    window.adminPanel = adminPanel;
 });
