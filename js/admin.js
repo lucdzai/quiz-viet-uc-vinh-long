@@ -17,8 +17,8 @@ class AdminPanel {
         // Initialize database reference
         this.initializeDatabase();
         
-        // Initial load
-        this.loadParticipants();
+        // Initial load and real-time sync
+        this.initRealtimeSync();
     }
 
     initializeDatabase() {
@@ -26,6 +26,62 @@ class AdminPanel {
         if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
             this.db = FirebaseConfig.getDatabase();
         }
+    }
+
+    initRealtimeSync() {
+        // Try to get Firebase database for real-time sync
+        if (this.db && window.firebase && window.firebase.database) {
+            const usersRef = window.firebase.database.ref(this.db, 'users');
+            
+            // Listen for data changes
+            window.firebase.database.onValue(usersRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    this.allData = Object.values(data)
+                        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    this.handleSearch();
+                    
+                    // Show notification for new data
+                    if (this.previousDataCount !== undefined && 
+                        Object.keys(data).length > this.previousDataCount) {
+                        this.showNotification('Có dữ liệu mới!');
+                    }
+                    this.previousDataCount = Object.keys(data).length;
+                } else {
+                    this.allData = [];
+                    this.showNoData();
+                }
+            }, (error) => {
+                console.error('Real-time sync error:', error);
+                // Fallback to manual loading if real-time fails
+                this.loadParticipants();
+            });
+
+            // Listen for connection state
+            const connectedRef = window.firebase.database.ref(this.db, '.info/connected');
+            window.firebase.database.onValue(connectedRef, (snap) => {
+                if (snap.val() === true) {
+                    console.log('Connected to Firebase');
+                } else {
+                    console.log('Disconnected from Firebase');
+                }
+            });
+        } else {
+            // Fallback to manual loading if Firebase is not available
+            console.warn('Firebase not available for real-time sync, using manual refresh');
+            this.loadParticipants();
+        }
+    }
+
+    showNotification(message) {
+        const notification = document.createElement('div');
+        notification.className = 'notification';
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
     }
 
     async refreshData() {
@@ -81,10 +137,10 @@ class AdminPanel {
                 <td>${this.formatTime(user.timestamp)}</td>
                 <td>${this.formatText(user.name)}</td>
                 <td>${this.formatText(user.phone)}</td>
-                <td>${this.formatCourse(user.classType)}</td>
+                <td>${this.formatCourse(user.classType || user.class_type)}</td>
                 <td>${user.score || 0}/5</td>
-                <td>${this.formatText(user.prize)}</td>
-                <td>${this.formatDecision(user.choice)}</td>
+                <td>${this.formatGift(user.gift || user.prize)}</td>
+                <td>${this.formatDecision(user.decision || user.choice)}</td>
             `;
             this.tbody.appendChild(row);
         });
@@ -103,10 +159,10 @@ class AdminPanel {
             'Thời gian': this.formatTime(user.timestamp),
             'Họ và tên': user.name || '',
             'Số điện thoại': user.phone || '',
-            'Khóa học': this.formatCourse(user.classType),
+            'Khóa học': this.formatCourse(user.classType || user.class_type),
             'Điểm số': `${user.score || 0}/5`,
-            'Phần quà': user.prize || '',
-            'Quyết định': this.formatDecision(user.choice)
+            'Phần quà': this.formatGift(user.gift || user.prize),
+            'Quyết định': this.formatDecision(user.decision || user.choice)
         }));
 
         const ws = XLSX.utils.json_to_sheet(data);
@@ -125,10 +181,10 @@ class AdminPanel {
                 this.formatTime(user.timestamp),
                 user.name || '',
                 user.phone || '',
-                this.formatCourse(user.classType),
+                this.formatCourse(user.classType || user.class_type),
                 `${user.score || 0}/5`,
-                user.prize || '',
-                this.formatDecision(user.choice)
+                this.formatGift(user.gift || user.prize),
+                this.formatDecision(user.decision || user.choice)
             ].map(field => `"${field}"`).join(',');
             csv += row + '\n';
         });
@@ -181,6 +237,14 @@ class AdminPanel {
             'decline': 'Từ chối'
         };
         return decisions[decision] || '-';
+    }
+
+    formatGift(gift) {
+        if (!gift) return '-';
+        if (typeof gift === 'object') {
+            return gift.name || gift.type || 'Phần quà';
+        }
+        return gift;
     }
 }
 
