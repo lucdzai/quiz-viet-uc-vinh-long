@@ -1,4 +1,9 @@
 document.addEventListener('DOMContentLoaded', async () => {
+    // Clear any existing player ID on page load
+    if (typeof config !== 'undefined') {
+        config.currentPlayerId = null;
+    }
+
     // Initialize player data when form is submitted
     const form = document.getElementById('info-form');
     if (form) {
