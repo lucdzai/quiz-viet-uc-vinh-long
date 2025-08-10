@@ -2,244 +2,39 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - Quiz Viet Uc Vinh Long</title>
-    <link rel="stylesheet" href="style.css?v=20241228">
-    <link rel="stylesheet" href="admin.css?v=20241228">
-    <script src="assets/js/chart-mock.js"></script>
+    <title>Admin Panel - Quiz Việt Úc</title>
+    <link rel="stylesheet" href="admin.css">
 </head>
 <body>
-    <div class="container">
-        <div class="admin-header">
-            <h1>🎓 Admin Dashboard</h1>
-            <p>Trung Tâm Ngoại Ngữ Việt Úc Vĩnh Long</p>
-            <div id="connection-indicator">
-                <span class="connection-status status-offline" id="connection-status">
-                    ❌ Đang kiểm tra kết nối...
-                </span>
-                <button class="refresh-btn" onclick="checkConnection()">🔄 Kiểm tra</button>
-            </div>
+    <div class="admin-container">
+        <div class="header">
+            <h1>Quản lý dữ liệu người tham gia</h1>
+            <button id="refreshButton" class="refresh-button">
+                <span class="refresh-icon">⟳</span>
+                Làm mới dữ liệu
+            </button>
         </div>
-
-        <nav class="admin-nav">
-            <button class="nav-btn active" onclick="showSection('dashboard')">📊 Dashboard</button>
-            <button class="nav-btn" onclick="showSection('data')">📋 Dữ liệu</button>
-            <button class="nav-btn" onclick="showSection('analytics')">📈 Phân tích</button>
-            <button class="nav-btn" onclick="showSection('export')">📤 Xuất dữ liệu</button>
-            <button class="nav-btn" onclick="showSection('settings')">⚙️ Cài đặt</button>
-            <button class="nav-btn" onclick="showClearDataDialog()" style="background: #e74c3c; margin-left: auto;">🗑️ Xóa dữ liệu</button>
-        </nav>
-
-        <!-- Dashboard Section -->
-        <section id="dashboard" class="admin-section active">
-            <h2>📊 Thống kê tổng quan</h2>
-            
-            <div class="stats-grid" id="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-value" id="total-participants">0</div>
-                    <div class="stat-label">👥 Tổng người tham gia</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="completed-quiz">0</div>
-                    <div class="stat-label">✅ Hoàn thành quiz</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="passed-quiz">0</div>
-                    <div class="stat-label">🎯 Đạt vòng quay</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="registered-users">0</div>
-                    <div class="stat-label">📝 Đăng ký khóa học</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="conversion-rate">0%</div>
-                    <div class="stat-label">💼 Tỷ lệ chuyển đổi</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="avg-score">0</div>
-                    <div class="stat-label">📊 Điểm trung bình</div>
-                </div>
-            </div>
-
-            <div class="chart-container">
-                <canvas id="statsChart"></canvas>
-            </div>
-
-            <div id="recent-activity">
-                <h3>🕐 Hoạt động gần đây</h3>
-                <div id="activity-list"></div>
-            </div>
-        </section>
-
-        <!-- Data Section -->
-        <section id="data" class="admin-section">
-            <h2>📋 Dữ liệu người dùng 
-                <span id="data-source-display" class="data-source-indicator source-unknown">Đang tải...</span>
-            </h2>
-            
-            <div class="filter-controls">
-                <input type="text" id="search-input" placeholder="🔍 Tìm kiếm theo tên hoặc SĐT...">
-                <select id="class-filter">
-                    <option value="">Tất cả lớp học</option>
-                    <option value="tieu-hoc">Tiểu học</option>
-                    <option value="thcs">THCS</option>
-                    <option value="thpt">THPT</option>
-                    <option value="tieng-trung">Tiếng Trung</option>
-                    <option value="tieng-anh-giao-tiep">Tiếng Anh giao tiếp</option>
-                    <option value="chung-chi">Chứng chỉ</option>
-                </select>
-                <select id="status-filter">
-                    <option value="">Tất cả trạng thái</option>
-                    <option value="completed">Hoàn thành</option>
-                    <option value="passed">Đạt vòng quay</option>
-                    <option value="registered">Đã đăng ký</option>
-                </select>
-                <button class="nav-btn" onclick="loadUserData()">🔄 Làm mới</button>
-            </div>
-
-            <div class="data-table" id="user-data-table">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Thời gian</th>
-                            <th>Tên</th>
-                            <th>SĐT</th>
-                            <th>Lớp học</th>
-                            <th>Điểm</th>
-                            <th>Quà</th>
-                            <th>Quyết định</th>
-                            <th>Trạng thái</th>
-                        </tr>
-                    </thead>
-                    <tbody id="user-data-body">
-                        <tr>
-                            <td colspan="8" style="text-align: center; padding: 2rem;">
-                                🔄 Đang tải dữ liệu...
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
-        <!-- Analytics Section -->
-        <section id="analytics" class="admin-section">
-            <h2>📈 Phân tích chi tiết</h2>
-            
-            <div class="chart-container">
-                <canvas id="classChart"></canvas>
-            </div>
-            
-            <div class="chart-container">
-                <canvas id="timeChart"></canvas>
-            </div>
-            
-            <div class="chart-container">
-                <canvas id="scoreChart"></canvas>
-            </div>
-        </section>
-
-        <!-- Export Section -->
-        <section id="export" class="admin-section">
-            <h2>📤 Xuất dữ liệu</h2>
-            
-            <div class="export-controls">
-                <button class="nav-btn" onclick="exportCSV()">📄 Xuất CSV</button>
-                <button class="nav-btn" onclick="exportJSON()">📄 Xuất JSON</button>
-                <button class="nav-btn" onclick="exportPDF()">📄 Xuất PDF</button>
-                <button class="nav-btn" onclick="exportExcel()">📊 Xuất Excel</button>
-            </div>
-            
-            <div id="export-options">
-                <h3>⚙️ Tùy chọn xuất</h3>
-                <label>
-                    <input type="checkbox" id="include-personal" checked> Bao gồm thông tin cá nhân
-                </label><br>
-                <label>
-                    <input type="checkbox" id="include-answers" checked> Bao gồm câu trả lời chi tiết
-                </label><br>
-                <label>
-                    <input type="checkbox" id="include-timestamps" checked> Bao gồm thời gian
-                </label><br>
-                <label>
-                    <input type="date" id="date-from"> đến <input type="date" id="date-to"> (Lọc theo thời gian)
-                </label>
-            </div>
-        </section>
-
-        <!-- Settings Section -->
-        <section id="settings" class="admin-section">
-            <h2>⚙️ Cài đặt hệ thống</h2>
-            
-            <div id="google-sheets-config">
-                <h3>🔗 Cấu hình Google Sheets</h3>
-                <p><strong>URL hiện tại:</strong> <code id="current-url"></code></p>
-                <button class="nav-btn" onclick="testConnection()">🧪 Test kết nối</button>
-                <button class="nav-btn" onclick="showSetupGuide()">📖 Hướng dẫn setup</button>
-            </div>
-            
-            <div id="data-management">
-                <h3>🗄️ Quản lý dữ liệu</h3>
-                <button class="nav-btn" onclick="showClearDataDialog()" style="background: #e74c3c;">🗑️ Xóa tất cả dữ liệu</button>
-                <button class="nav-btn" onclick="syncData()">🔄 Đồng bộ dữ liệu</button>
-                <button class="nav-btn" onclick="backupData()">💾 Sao lưu dữ liệu</button>
-                <p style="font-size: 0.85rem; color: #666; margin-top: 0.5rem;">
-                    💡 <strong>Tip:</strong> Nút "Xóa dữ liệu" cũng có sẵn ở thanh điều hướng phía trên để truy cập nhanh.
-                </p>
-            </div>
-            
-            <div id="system-info">
-                <h3>ℹ️ Thông tin hệ thống</h3>
-                <p>Phiên bản: 1.0.0</p>
-                <p>Cập nhật: <span id="last-update"></span></p>
-                <p>Nguồn dữ liệu: <span id="data-source"></span></p>
-            </div>
-        </section>
-    </div>
-
-    <!-- Loading Overlay -->
-    <div class="loading-overlay" id="loading-overlay">
-        <div class="loading-content">
-            <div class="spinner"></div>
-            <p id="loading-text">Đang xử lý...</p>
+        <div class="table-container">
+            <table id="participantTable">
+                <thead>
+                    <tr>
+                        <th width="50">STT</th>
+                        <th width="160">Thời gian</th>
+                        <th width="200">Họ và tên</th>
+                        <th width="120">Số điện thoại</th>
+                        <th width="120">Khóa học</th>
+                        <th width="80">Điểm số</th>
+                        <th width="150">Phần quà</th>
+                        <th width="150">Quyết định</th>
+                    </tr>
+                </thead>
+                <tbody id="participantData">
+                </tbody>
+            </table>
         </div>
     </div>
-
-    <!-- Clear Data Confirmation Dialog -->
-    <div class="clear-data-dialog" id="clear-data-dialog">
-        <div class="clear-data-content">
-            <div class="clear-data-title">⚠️ Xóa tất cả dữ liệu</div>
-            
-            <div class="clear-data-warning">
-                <strong>Cảnh báo:</strong> Hành động này sẽ xóa toàn bộ dữ liệu được lưu trữ locally và không thể hoàn tác!
-            </div>
-            
-            <div class="clear-data-list">
-                <h4>Các dữ liệu sẽ bị xóa:</h4>
-                <ul>
-                    <li>🗄️ LocalStorage (dữ liệu quiz, thống kê)</li>
-                    <li>📋 SessionStorage (dữ liệu phiên làm việc)</li>
-                    <li>🔥 IndexedDB (Firebase local cache)</li>
-                    <li>🌐 Browser Cache (nếu có thể)</li>
-                </ul>
-            </div>
-            
-            <p style="margin: 1rem 0; font-size: 0.9rem; color: #666;">
-                Trang sẽ được tải lại sau khi xóa dữ liệu để đảm bảo ứng dụng hoạt động bình thường.
-            </p>
-            
-            <div class="clear-data-actions">
-                <button class="clear-data-btn clear-data-confirm" onclick="confirmClearAllData()">
-                    🗑️ Xác nhận xóa
-                </button>
-                <button class="clear-data-btn clear-data-cancel" onclick="hideClearDataDialog()">
-                    ❌ Hủy bỏ
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Firebase SDK v10.7.1 (Try CDN first, fallback handled by firebase-fallback.js) -->
+    
+    <!-- Firebase SDK v10.7.1 -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getDatabase, ref, set, get, push, onValue, serverTimestamp, increment } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
@@ -260,14 +55,10 @@
         };
     </script>
 
-    <!-- Fallback Mock Firebase (loads if CDN is blocked) -->
-    <script src="assets/js/firebase-mock.js"></script>
-    
     <!-- Application Scripts (Load in correct order) -->
-    <script src="js/firebase-config.js?v=20241228"></script>
-    <script src="js/firebase-fallback.js?v=20241228"></script>
-    <script src="js/google-sheets.js?v=20241228"></script>
-    <script src="config.js?v=20241228"></script>
-    <script src="js/admin.js?v=20241228"></script>
+    <script src="js/firebase-config.js"></script>
+    <script src="js/firebase-fallback.js"></script>
+    <script src="config.js"></script>
+    <script src="js/admin.js"></script>
 </body>
 </html>
