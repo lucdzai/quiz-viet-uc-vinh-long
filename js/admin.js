@@ -335,6 +335,26 @@ class AdminPanel {
     }
 
     /**
+     * Update connection display status
+     */
+    updateConnectionDisplay(online, databaseType, error) {
+        const statusElement = document.getElementById('connection-status');
+        
+        if (statusElement) {
+            if (online) {
+                statusElement.textContent = `✅ Kết nối ${databaseType}`;
+                statusElement.className = 'connection-status status-online';
+            } else {
+                statusElement.textContent = `❌ Offline - ${error || 'Không thể kết nối'}`;
+                statusElement.className = 'connection-status status-offline';
+            }
+        }
+        
+        this.isOnline = online;
+        this.updateDataSourceIndicator(databaseType);
+    }
+
+    /**
      * Enhanced connection check
      */
     async checkConnection() {
@@ -1108,36 +1128,39 @@ class AdminPanel {
     }
 
     /**
-     * Display user data in table with improved formatting
+     * Display user data in table with simplified formatting
      */
-    displayUserData(users) {
-        const tbody = document.getElementById('user-data-body');
+    displayUserData(data) {
+        const tbody = document.getElementById('participantData');
         if (!tbody) return;
         
-        if (users.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem;">Chưa có dữ liệu</td></tr>';
-            return;
-        }
+        tbody.innerHTML = '';
         
-        let html = '';
-        users.forEach(user => {
-            const formatted = this.formatDisplayData(user);
-            
-            html += `
-                <tr>
-                    <td>${formatted.timestamp}</td>
-                    <td>${formatted.name}</td>
-                    <td>${formatted.phone}</td>
-                    <td>${formatted.classType}</td>
-                    <td>${formatted.score}</td>
-                    <td>${formatted.prize}</td>
-                    <td>${formatted.choice}</td>
-                    <td>${formatted.status}</td>
-                </tr>
+        Object.values(data).forEach(user => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${this.formatTime(user.timestamp)}</td>
+                <td>${user.name || '-'}</td>
+                <td>${user.phone || '-'}</td>
+                <td>${user.class_type || user.classType || '-'}</td>
+                <td>${user.score || '0'}/10</td>
             `;
+            tbody.appendChild(row);
         });
-        
-        tbody.innerHTML = html;
+    }
+
+    /**
+     * Format timestamp for display
+     */
+    formatTime(timestamp) {
+        if (!timestamp) return '-';
+        return new Intl.DateTimeFormat('vi-VN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        }).format(new Date(timestamp));
     }
 }
 

@@ -99,6 +99,23 @@
     margin-bottom: 2rem;
 }
 
+#participantTable {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+#participantTable th,
+#participantTable td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+#participantTable th {
+    background-color: #f4f4f4;
+}
+
 .data-table {
     overflow-x: auto;
     background: white;
