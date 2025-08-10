@@ -1,6 +1,21 @@
 class AdminPanel {
     constructor() {
-        this.db = this.getDB();
+        this.initializeAdmin();
+    }
+
+    async initializeAdmin() {
+        try {
+            await FirebaseConfig.initializeFirebase();
+            this.db = FirebaseConfig.getDatabase();
+            this.setupEventListeners();
+            this.initRealtimeSync();
+        } catch (error) {
+            console.error('Admin initialization failed:', error);
+            this.handleInitError();
+        }
+    }
+
+    setupEventListeners() {
         this.tbody = document.getElementById('participantData');
         this.refreshButton = document.getElementById('refreshButton');
         this.exportButton = document.getElementById('exportButton');
@@ -13,43 +28,38 @@ class AdminPanel {
         this.refreshButton.addEventListener('click', () => this.refreshData());
         this.exportButton.addEventListener('click', () => this.exportToExcel());
         this.searchInput.addEventListener('input', () => this.handleSearch());
-        
-        // Initialize real-time sync
-        this.initRealtimeSync();
     }
 
-    getDB() {
-        // Use the existing Firebase infrastructure
-        if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
-            return FirebaseConfig.getDatabase();
-        }
-        return null;
+    handleInitError() {
+        console.warn('Database not available, falling back to manual refresh');
+        this.setupEventListeners();
+        this.loadParticipants();
     }
 
     initRealtimeSync() {
         if (!this.db) {
-            console.warn('Database not available, falling back to manual refresh');
-            this.loadParticipants();
+            console.error('Database not available');
             return;
         }
 
         const usersRef = window.firebase.database.ref(this.db, 'users');
-        
-        // Listen for data changes
-        window.firebase.database.onValue(usersRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                this.allData = Object.values(data)
-                    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-                this.handleSearch();
-            } else {
-                this.allData = [];
-                this.showNoData();
+        window.firebase.database.onValue(usersRef, 
+            (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    this.updateDisplay(data);
+                }
+            },
+            (error) => {
+                console.error('Database sync error:', error);
             }
-        }, (error) => {
-            console.error('Database error:', error);
-            this.showNoData();
-        });
+        );
+    }
+
+    updateDisplay(data) {
+        this.allData = Object.values(data)
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        this.handleSearch();
     }
 
     async refreshData() {

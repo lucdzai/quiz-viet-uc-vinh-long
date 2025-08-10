@@ -5,6 +5,7 @@
  * - Enhanced user data saving with device info and timestamps
  * - Offline data handling with localStorage
  * - Integration with Firebase and sync service
+ * - Wheel result and final choice updates
  */
 
 class StudentDataManager {
@@ -12,6 +13,7 @@ class StudentDataManager {
         this.isOnline = navigator.onLine;
         this.retryAttempts = 3;
         this.retryDelay = 2000;
+        this.userId = null;
         
         // Listen for online/offline events
         window.addEventListener('online', () => {
@@ -23,6 +25,79 @@ class StudentDataManager {
             this.isOnline = false;
             this.onConnectionChange(false);
         });
+    }
+
+    /**
+     * Update wheel result with enhanced error handling
+     */
+    async updateWheelResult(result) {
+        try {
+            if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.databaseService) {
+                await FirebaseConfig.databaseService.update(`users/${this.userId}/wheelResult`, result);
+                console.log('✅ Wheel result updated successfully');
+            } else {
+                console.warn('⚠️ Firebase not available, saving wheel result locally');
+                this.saveWheelResultLocally(result);
+            }
+        } catch (error) {
+            console.error('❌ Wheel update error:', error);
+            this.saveWheelResultLocally(result);
+        }
+    }
+
+    /**
+     * Update final choice with enhanced error handling
+     */
+    async updateFinalChoice(choice) {
+        try {
+            if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.databaseService) {
+                await FirebaseConfig.databaseService.update(`users/${this.userId}/finalChoice`, choice);
+                console.log('✅ Final choice updated successfully');
+            } else {
+                console.warn('⚠️ Firebase not available, saving final choice locally');
+                this.saveFinalChoiceLocally(choice);
+            }
+        } catch (error) {
+            console.error('❌ Final choice update error:', error);
+            this.saveFinalChoiceLocally(choice);
+        }
+    }
+
+    /**
+     * Save wheel result locally as fallback
+     */
+    saveWheelResultLocally(result) {
+        try {
+            const localData = JSON.parse(localStorage.getItem('quizUserData') || '{}');
+            localData.wheelResult = result;
+            localData.wheelResultTimestamp = new Date().toISOString();
+            localStorage.setItem('quizUserData', JSON.stringify(localData));
+            console.log('💾 Wheel result saved locally');
+        } catch (error) {
+            console.error('❌ Failed to save wheel result locally:', error);
+        }
+    }
+
+    /**
+     * Save final choice locally as fallback
+     */
+    saveFinalChoiceLocally(choice) {
+        try {
+            const localData = JSON.parse(localStorage.getItem('quizUserData') || '{}');
+            localData.finalChoice = choice;
+            localData.finalChoiceTimestamp = new Date().toISOString();
+            localStorage.setItem('quizUserData', JSON.stringify(localData));
+            console.log('💾 Final choice saved locally');
+        } catch (error) {
+            console.error('❌ Failed to save final choice locally:', error);
+        }
+    }
+
+    /**
+     * Set the current user ID for updates
+     */
+    setUserId(userId) {
+        this.userId = userId;
     }
 
     /**

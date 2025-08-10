@@ -26,12 +26,16 @@ const DB_PATHS = {
 // Firebase initialization state
 let firebaseApp = null;
 let database = null;
-let isFirebaseInitialized = false;
 
 /**
- * Initialize Firebase application with v10 syntax
+ * Initialize Firebase application with proper async sequence
  */
-function initializeFirebase() {
+async function initializeFirebase() {
+    if (firebaseApp) {
+        console.log('🔥 Firebase already initialized');
+        return firebaseApp;
+    }
+
     try {
         // Check if Firebase modules are loaded
         if (typeof window.firebase === 'undefined' || !window.firebase.initializeApp) {
@@ -40,43 +44,117 @@ function initializeFirebase() {
             
             // Trigger fallback event immediately
             triggerConnectionUpdate(false, 'localStorage', 'Firebase SDK not available');
-            return false;
+            throw new Error('Firebase SDK not available');
         }
 
-        // Check if Firebase is already initialized
-        if (firebaseApp) {
-            console.log('✅ Firebase already initialized');
-            triggerConnectionUpdate(true, 'firebase');
-            return true;
-        }
-
-        // Initialize Firebase with v10 syntax
-        firebaseApp = window.firebase.initializeApp(FIREBASE_CONFIG);
-        database = window.firebase.database.getDatabase(firebaseApp);
-        isFirebaseInitialized = true;
+        firebaseApp = await window.firebase.initializeApp(FIREBASE_CONFIG);
+        database = window.firebase.database.getDatabase();
         
         console.log('✅ Firebase v10 initialized successfully');
+        await verifyDatabaseConnection();
         
-        // Set up connection monitoring
-        setupConnectionMonitoring();
-        
-        // Trigger successful initialization event
-        triggerConnectionUpdate(true, 'firebase');
-        
-        return true;
-        
+        return firebaseApp;
     } catch (error) {
         console.error('❌ Firebase initialization failed:', error);
-        console.info('💡 Common causes: Invalid configuration, network issues, or Firebase service unavailable');
-        console.info('📱 Application will continue in offline mode using localStorage');
-        isFirebaseInitialized = false;
-        
-        // Trigger error event for UI notification
-        triggerConnectionUpdate(false, 'localStorage', `Firebase initialization failed: ${error.message}`);
-        
-        return false;
+        throw error;
     }
 }
+
+function getDatabase() {
+    if (!database) {
+        throw new Error('⚠️ Firebase not initialized. Call initializeFirebase() first.');
+    }
+    return database;
+}
+
+/**
+ * Verify database connection with proper async handling
+ */
+async function verifyDatabaseConnection() {
+    if (!database) {
+        throw new Error('Database not available for verification');
+    }
+    
+    try {
+        console.log('🔍 Verifying database connection...');
+        
+        // Test with a safe path
+        const testRef = window.firebase.database.ref(database, 'connection_test');
+        const testData = {
+            timestamp: Date.now(),
+            test: true
+        };
+        
+        await window.firebase.database.set(testRef, testData);
+        
+        // Test reading back
+        const snapshot = await window.firebase.database.get(testRef);
+        const success = snapshot.exists() && snapshot.val().test === true;
+        
+        if (success) {
+            console.log('✅ Database connection verified');
+            // Clean up test data
+            await window.firebase.database.set(testRef, null);
+        }
+        
+        return success;
+    } catch (error) {
+        console.error('❌ Database connection verification failed:', error);
+        throw error;
+    }
+}
+
+// Centralized database service with proper error handling
+const databaseService = {
+    update: async (path, data) => {
+        const db = getDatabase();
+        try {
+            const ref = window.firebase.database.ref(db, path);
+            await window.firebase.database.set(ref, data);
+            console.log(`✅ Update successful for ${path}`);
+            return true;
+        } catch (error) {
+            console.error(`❌ Update failed for ${path}:`, error);
+            return false;
+        }
+    },
+    
+    get: async (path) => {
+        const db = getDatabase();
+        try {
+            const ref = window.firebase.database.ref(db, path);
+            const snapshot = await window.firebase.database.get(ref);
+            return snapshot.exists() ? snapshot.val() : null;
+        } catch (error) {
+            console.error(`❌ Get failed for ${path}:`, error);
+            throw error;
+        }
+    },
+    
+    push: async (path, data) => {
+        const db = getDatabase();
+        try {
+            const ref = window.firebase.database.ref(db, path);
+            const newRef = await window.firebase.database.push(ref, data);
+            console.log(`✅ Push successful for ${path}`);
+            return newRef.key;
+        } catch (error) {
+            console.error(`❌ Push failed for ${path}:`, error);
+            throw error;
+        }
+    },
+    
+    onValue: (path, callback, errorCallback) => {
+        const db = getDatabase();
+        try {
+            const ref = window.firebase.database.ref(db, path);
+            return window.firebase.database.onValue(ref, callback, errorCallback);
+        } catch (error) {
+            console.error(`❌ onValue setup failed for ${path}:`, error);
+            if (errorCallback) errorCallback(error);
+        }
+    }
+};
 
 /**
  * Trigger connection status update events
@@ -156,7 +234,7 @@ function setupConnectionMonitoring() {
  * Get Firebase database reference
  */
 function getDatabase() {
-    if (!isFirebaseInitialized) {
+    if (!database) {
         console.warn('⚠️ Firebase not initialized. Call initializeFirebase() first.');
         return null;
     }
@@ -255,7 +333,7 @@ async function verifyDatabaseAccess() {
  */
 function getConnectionStatus() {
     return {
-        initialized: isFirebaseInitialized,
+        initialized: firebaseApp !== null,
         configured: isFirebaseConfigured(),
         app: firebaseApp !== null,
         database: database !== null
@@ -266,7 +344,7 @@ function getConnectionStatus() {
  * Test Firebase connection with v10 syntax using valid database paths
  */
 async function testFirebaseConnection() {
-    if (!isFirebaseInitialized || !database) {
+    if (!firebaseApp || !database) {
         console.warn('⚠️ Firebase not initialized for connection test');
         return false;
     }
@@ -327,22 +405,31 @@ window.FirebaseConfig = {
     getConnectionStatus,
     testFirebaseConnection,
     verifyDatabaseAccess,
-    setupConnectionMonitoring
+    setupConnectionMonitoring,
+    databaseService
 };
 
 // Auto-initialize Firebase when script loads (if configured)
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     if (isFirebaseConfigured()) {
         console.log('🔥 Auto-initializing Firebase v10...');
-        setTimeout(() => {
-            // Delay initialization to ensure Firebase SDK is loaded
-            if (typeof window.firebase !== 'undefined' && window.firebase.initializeApp) {
-                initializeFirebase();
-            } else {
-                console.warn('⚠️ Firebase SDK not available - falling back to localStorage mode');
-                console.info('💡 Tip: This could be due to network issues, ad blockers, or CDN blocking');
-                // Trigger fallback mode event with more informative message
-                triggerConnectionUpdate(false, 'localStorage', 'Firebase SDK not loaded - using offline mode');
+        
+        // Delay initialization to ensure Firebase SDK is loaded
+        setTimeout(async () => {
+            try {
+                if (typeof window.firebase !== 'undefined' && window.firebase.initializeApp) {
+                    await initializeFirebase();
+                    // Set up connection monitoring after successful init
+                    setupConnectionMonitoring();
+                } else {
+                    console.warn('⚠️ Firebase SDK not available - falling back to localStorage mode');
+                    console.info('💡 Tip: This could be due to network issues, ad blockers, or CDN blocking');
+                    // Trigger fallback mode event with more informative message
+                    triggerConnectionUpdate(false, 'localStorage', 'Firebase SDK not loaded - using offline mode');
+                }
+            } catch (error) {
+                console.error('❌ Auto-initialization failed:', error);
+                triggerConnectionUpdate(false, 'localStorage', `Initialization failed: ${error.message}`);
             }
         }, 200); // Increased delay for module loading
     } else {
