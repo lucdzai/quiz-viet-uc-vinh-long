@@ -115,7 +115,7 @@ class FirebaseFallbackClass {
             userData.id = userId;
             userData.timestamp = userData.timestamp || new Date().toISOString();
 
-            const userRef = window.firebase.database.ref(this.database, `users/${userId}`);
+            const userRef = window.firebase.database.ref(this.database, `players/${userId}`);
             await window.firebase.database.set(userRef, userData);
             
             // Update stats

@@ -233,7 +233,7 @@ class SyncService {
                     return false;
                 }
 
-                const userRef = window.firebase.database.ref(database, `users/${item.data.id || Date.now()}`);
+                const userRef = window.firebase.database.ref(database, `players/${item.data.id || Date.now()}`);
                 await window.firebase.database.set(userRef, {
                     ...item.data,
                     syncedAt: window.firebase.database.serverTimestamp(),
@@ -260,7 +260,7 @@ class SyncService {
                     return false;
                 }
 
-                const userRef = window.firebase.database.ref(database, `users/${item.id}`);
+                const userRef = window.firebase.database.ref(database, `players/${item.id}`);
                 const { score, answers } = item.data;
                 
                 await window.firebase.database.update(userRef, {
@@ -289,7 +289,7 @@ class SyncService {
                     return false;
                 }
 
-                const userRef = window.firebase.database.ref(database, `users/${item.id}`);
+                const userRef = window.firebase.database.ref(database, `players/${item.id}`);
                 await window.firebase.database.update(userRef, {
                     prize: item.data.prize,
                     wheelCompletedAt: window.firebase.database.serverTimestamp()
@@ -315,7 +315,7 @@ class SyncService {
                     return false;
                 }
 
-                const userRef = window.firebase.database.ref(database, `users/${item.id}`);
+                const userRef = window.firebase.database.ref(database, `players/${item.id}`);
                 const { choice, registrationData } = item.data;
                 
                 await window.firebase.database.update(userRef, {

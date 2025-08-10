@@ -55,7 +55,7 @@ const Database = {
                 if (database) {
                     console.log('🔄 Saving to Firebase...');
                     
-                    const userRef = window.firebase.database.ref(database, `users/${userData.id || Date.now()}`);
+                    const userRef = window.firebase.database.ref(database, `players/${userData.id || Date.now()}`);
                     await window.firebase.database.set(userRef, {
                         ...userData,
                         savedAt: window.firebase.database.serverTimestamp(),
@@ -93,7 +93,7 @@ const Database = {
             if (this.isFirebaseAvailable()) {
                 const database = FirebaseConfig.getDatabase();
                 if (database) {
-                    const userRef = window.firebase.database.ref(database, `users/${userId}`);
+                    const userRef = window.firebase.database.ref(database, `players/${userId}`);
                     await window.firebase.database.update(userRef, {
                         score: score,
                         answers: answers,
@@ -122,7 +122,7 @@ const Database = {
             if (this.isFirebaseAvailable()) {
                 const database = FirebaseConfig.getDatabase();
                 if (database) {
-                    const userRef = window.firebase.database.ref(database, `users/${userId}`);
+                    const userRef = window.firebase.database.ref(database, `players/${userId}`);
                     await window.firebase.database.update(userRef, {
                         prize: prize,
                         wheelCompletedAt: window.firebase.database.serverTimestamp()
@@ -150,7 +150,7 @@ const Database = {
             if (this.isFirebaseAvailable()) {
                 const database = FirebaseConfig.getDatabase();
                 if (database) {
-                    const userRef = window.firebase.database.ref(database, `users/${userId}`);
+                    const userRef = window.firebase.database.ref(database, `players/${userId}`);
                     await window.firebase.database.update(userRef, {
                         choice: choice,
                         registrationData: registrationData,
@@ -179,7 +179,7 @@ const Database = {
             if (this.isFirebaseAvailable()) {
                 const database = FirebaseConfig.getDatabase();
                 if (database) {
-                    const usersRef = window.firebase.database.ref(database, 'users');
+                    const usersRef = window.firebase.database.ref(database, 'players');
                     const snapshot = await window.firebase.database.get(usersRef);
                     
                     if (snapshot.exists()) {
@@ -226,7 +226,7 @@ const Database = {
             if (this.isFirebaseAvailable()) {
                 const database = FirebaseConfig.getDatabase();
                 if (database) {
-                    const usersRef = window.firebase.database.ref(database, 'users');
+                    const usersRef = window.firebase.database.ref(database, 'players');
                     const snapshot = await window.firebase.database.get(usersRef);
                     
                     if (snapshot.exists()) {
@@ -379,84 +379,166 @@ const ConnectionStatus = {
     }
 };
 
+class PlayerDataManager {
+    constructor() {
+        this.database = null;
+        this.initializeFirebase();
+    }
+
+    async initializeFirebase() {
+        try {
+            if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
+                this.database = FirebaseConfig.getDatabase();
+            }
+        } catch (error) {
+            console.error('❌ Firebase initialization failed:', error);
+        }
+    }
+
+    async initializePlayer(playerData) {
+        try {
+            if (!this.database) {
+                await this.initializeFirebase();
+            }
+
+            // Generate unique player ID
+            const timestamp = Date.now();
+            const playerId = `player_${timestamp}`;
+            
+            // Get next sequence number
+            const stt = await this.getNextSequence();
+            
+            const playerRecord = {
+                id: playerId,
+                startTime: timestamp,
+                stt: stt,
+                name: playerData.name || '',
+                phone: playerData.phone || '',
+                course: playerData.course || '',
+                score: 0,
+                prize: '',
+                finalDecision: '',
+                lastUpdated: window.firebase?.database?.serverTimestamp ? window.firebase.database.serverTimestamp() : timestamp
+            };
+
+            if (this.database && window.firebase?.database?.ref && window.firebase?.database?.set) {
+                const playerRef = window.firebase.database.ref(this.database, `players/${playerId}`);
+                await window.firebase.database.set(playerRef, playerRecord);
+            }
+            
+            console.log('✅ Player initialized:', playerId);
+            return playerId;
+        } catch (error) {
+            console.error('❌ Failed to initialize player:', error);
+            throw error;
+        }
+    }
+
+    async getNextSequence() {
+        try {
+            if (this.database && window.firebase?.database?.ref) {
+                const counterRef = window.firebase.database.ref(this.database, 'counters/players');
+                const snapshot = await window.firebase.database.get(counterRef);
+                const current = (snapshot.val() || 0) + 1;
+                await window.firebase.database.set(counterRef, current);
+                return current;
+            }
+            return Date.now();
+        } catch (error) {
+            console.error('❌ Failed to get sequence number:', error);
+            return Date.now();
+        }
+    }
+}
+
 // Export configuration and functions
 const config = {
-    async updateQuizResult(playerId, result) {
-        if (!playerId) return;
+    // Initialize player ID on page load
+    currentPlayerId: null,
+
+    // Function to initialize player
+    async initializePlayer(playerData) {
+        try {
+            const playerManager = new PlayerDataManager();
+            this.currentPlayerId = await playerManager.initializePlayer(playerData);
+            console.log('✅ Player initialized:', this.currentPlayerId);
+            return true;
+        } catch (error) {
+            console.error('❌ Failed to initialize player:', error);
+            return false;
+        }
+    },
+
+    // Update quiz result
+    async updateQuizResult(result) {
+        if (!this.currentPlayerId) {
+            console.error('❌ No active player');
+            return;
+        }
+
         try {
             if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
                 const database = FirebaseConfig.getDatabase();
-                if (database) {
-                    const playerRef = window.firebase.database.ref(database, `players/${playerId}`);
-                    await window.firebase.database.update ? 
-                        window.firebase.database.update(playerRef, {
-                            score: result.score || result,
-                            lastUpdated: Date.now()
-                        }) :
-                        window.firebase.database.set(playerRef, {
-                            score: result.score || result,
-                            lastUpdated: Date.now()
-                        });
+                if (database && window.firebase?.database?.ref && window.firebase?.database?.update) {
+                    const playerRef = window.firebase.database.ref(database, `players/${this.currentPlayerId}`);
+                    await window.firebase.database.update(playerRef, {
+                        score: result.score || result,
+                        lastUpdated: window.firebase?.database?.serverTimestamp ? window.firebase.database.serverTimestamp() : Date.now()
+                    });
                     console.log('✅ Quiz result updated');
-                    return true;
                 }
             }
         } catch (error) {
             console.error('❌ Quiz update error:', error);
         }
-        return false;
     },
 
-    async updateWheelResult(playerId, prize) {
-        if (!playerId) return;
+    // Update wheel result
+    async updateWheelResult(prize) {
+        if (!this.currentPlayerId) {
+            console.error('❌ No active player');
+            return;
+        }
+
         try {
             if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
                 const database = FirebaseConfig.getDatabase();
-                if (database) {
-                    const playerRef = window.firebase.database.ref(database, `players/${playerId}`);
-                    await window.firebase.database.update ? 
-                        window.firebase.database.update(playerRef, {
-                            prize: prize,
-                            lastUpdated: Date.now()
-                        }) :
-                        window.firebase.database.set(playerRef, {
-                            prize: prize,
-                            lastUpdated: Date.now()
-                        });
+                if (database && window.firebase?.database?.ref && window.firebase?.database?.update) {
+                    const playerRef = window.firebase.database.ref(database, `players/${this.currentPlayerId}`);
+                    await window.firebase.database.update(playerRef, {
+                        prize: prize,
+                        lastUpdated: window.firebase?.database?.serverTimestamp ? window.firebase.database.serverTimestamp() : Date.now()
+                    });
                     console.log('✅ Wheel result updated');
-                    return true;
                 }
             }
         } catch (error) {
             console.error('❌ Wheel update error:', error);
         }
-        return false;
     },
 
-    async updateFinalChoice(playerId, decision) {
-        if (!playerId) return;
+    // Update final choice
+    async updateFinalChoice(decision) {
+        if (!this.currentPlayerId) {
+            console.error('❌ No active player');
+            return;
+        }
+
         try {
             if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
                 const database = FirebaseConfig.getDatabase();
-                if (database) {
-                    const playerRef = window.firebase.database.ref(database, `players/${playerId}`);
-                    await window.firebase.database.update ? 
-                        window.firebase.database.update(playerRef, {
-                            finalDecision: decision,
-                            lastUpdated: Date.now()
-                        }) :
-                        window.firebase.database.set(playerRef, {
-                            finalDecision: decision,
-                            lastUpdated: Date.now()
-                        });
+                if (database && window.firebase?.database?.ref && window.firebase?.database?.update) {
+                    const playerRef = window.firebase.database.ref(database, `players/${this.currentPlayerId}`);
+                    await window.firebase.database.update(playerRef, {
+                        finalDecision: decision,
+                        lastUpdated: window.firebase?.database?.serverTimestamp ? window.firebase.database.serverTimestamp() : Date.now()
+                    });
                     console.log('✅ Final choice updated');
-                    return true;
                 }
             }
         } catch (error) {
             console.error('❌ Final choice update error:', error);
         }
-        return false;
     }
 };
 

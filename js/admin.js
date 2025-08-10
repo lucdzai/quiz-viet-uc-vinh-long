@@ -3,7 +3,6 @@ class AdminPanel {
         this.database = null;
         this.playersRef = null;
         this.playersList = new Map();
-        this.initialized = false;
         this.initialize();
     }
 
@@ -19,7 +18,7 @@ class AdminPanel {
                 if (this.database) {
                     this.playersRef = this.ref(this.database, 'players');
                     
-                    // Listen for all player changes
+                    // Listen for real-time updates
                     this.onValue(this.playersRef, (snapshot) => {
                         const data = snapshot.val();
                         if (data) {
@@ -29,11 +28,7 @@ class AdminPanel {
                             this.renderPlayersTable(); // This will show empty message
                         }
                     });
-                    
-                    this.initialized = true;
                 }
-            } else {
-                throw new Error('Firebase not available');
             }
 
             console.log('✅ Admin panel initialized');
