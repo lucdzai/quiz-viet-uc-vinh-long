@@ -399,9 +399,29 @@ if (window.location.search.indexOf('student=true') === -1) {
     });
 }
 
+// Updated config object with new database methods
+const config = {
+    async updateWheelResult(userId, result) {
+        try {
+            await window.FirebaseConfig.databaseMethods.updateWheelResult(userId, result);
+            console.log('✅ Wheel result updated successfully');
+        } catch (error) {
+            console.error('❌ Wheel update error:', error);
+        }
+    },
 
+    async updateFinalChoice(userId, choice) {
+        try {
+            await window.FirebaseConfig.databaseMethods.updateFinalChoice(userId, choice);
+            console.log('✅ Final choice updated successfully');
+        } catch (error) {
+            console.error('❌ Final choice update error:', error);
+        }
+    }
+};
 
-
+// Make config available globally
+window.config = config;
 
 
 

@@ -1,17 +1,58 @@
 class AdminPanel {
     constructor() {
-        this.initializeAdmin();
+        this.initialize();
     }
 
-    async initializeAdmin() {
+    async initialize() {
         try {
-            await FirebaseConfig.initializeFirebase();
-            this.db = FirebaseConfig.getDatabase();
-            this.setupEventListeners();
+            await window.FirebaseConfig.initializeFirebase();
             this.initRealtimeSync();
+            console.log('✅ Admin panel initialized');
         } catch (error) {
-            console.error('Admin initialization failed:', error);
-            this.handleInitError();
+            console.error('❌ Admin initialization failed:', error);
+            this.showError('Failed to initialize admin panel');
+        }
+    }
+
+    initRealtimeSync() {
+        const database = window.FirebaseConfig.getDatabase();
+        if (!database) {
+            console.error('Database not available for real-time sync');
+            this.setupEventListeners();
+            this.loadParticipants();
+            return;
+        }
+
+        const usersRef = window.firebase.database.ref(database, 'users');
+        window.firebase.database.onValue(usersRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                this.displayData(Object.values(data));
+            } else {
+                this.showNoData();
+            }
+        }, (error) => {
+            console.error('Sync error:', error);
+            this.showError('Failed to sync data');
+        });
+        
+        this.setupEventListeners();
+    }
+
+    displayData(data) {
+        this.allData = data.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        this.handleSearch();
+    }
+
+    showError(message) {
+        if (this.tbody) {
+            this.tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: red;">${message}</td></tr>`;
+        }
+    }
+
+    showNoData() {
+        if (this.tbody) {
+            this.tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">Không có dữ liệu</td></tr>';
         }
     }
 
@@ -25,52 +66,39 @@ class AdminPanel {
         this.filteredData = [];
         
         // Event listeners
-        this.refreshButton.addEventListener('click', () => this.refreshData());
-        this.exportButton.addEventListener('click', () => this.exportToExcel());
-        this.searchInput.addEventListener('input', () => this.handleSearch());
-    }
-
-    handleInitError() {
-        console.warn('Database not available, falling back to manual refresh');
-        this.setupEventListeners();
-        this.loadParticipants();
-    }
-
-    initRealtimeSync() {
-        if (!this.db) {
-            console.error('Database not available');
-            return;
+        if (this.refreshButton) {
+            this.refreshButton.addEventListener('click', () => this.refreshData());
         }
-
-        const usersRef = window.firebase.database.ref(this.db, 'users');
-        window.firebase.database.onValue(usersRef, 
-            (snapshot) => {
-                const data = snapshot.val();
-                if (data) {
-                    this.updateDisplay(data);
-                }
-            },
-            (error) => {
-                console.error('Database sync error:', error);
-            }
-        );
-    }
-
-    updateDisplay(data) {
-        this.allData = Object.values(data)
-            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-        this.handleSearch();
+        if (this.exportButton) {
+            this.exportButton.addEventListener('click', () => this.exportToExcel());
+        }
+        if (this.searchInput) {
+            this.searchInput.addEventListener('input', () => this.handleSearch());
+        }
     }
 
     async refreshData() {
-        this.refreshButton.classList.add('loading');
+        if (this.refreshButton) {
+            this.refreshButton.classList.add('loading');
+        }
         await this.loadParticipants();
-        this.refreshButton.classList.remove('loading');
+        if (this.refreshButton) {
+            this.refreshButton.classList.remove('loading');
+        }
+    }
+
+    handleSearch() {
+        const searchTerm = this.searchInput ? this.searchInput.value.toLowerCase().trim() : '';
+        this.filteredData = this.allData.filter(user => 
+            user.name?.toLowerCase().includes(searchTerm) ||
+            user.phone?.toLowerCase().includes(searchTerm)
+        );
+        this.displayParticipants(this.filteredData);
     }
 
     async loadParticipants() {
         try {
-            // Use the Database helper from config.js
+            // Use the Database helper from config.js as fallback
             const result = await Database.getAllUserData();
             
             if (result.success && result.data) {
@@ -86,15 +114,6 @@ class AdminPanel {
             this.allData = [];
             this.showNoData();
         }
-    }
-
-    handleSearch() {
-        const searchTerm = this.searchInput.value.toLowerCase().trim();
-        this.filteredData = this.allData.filter(user => 
-            user.name?.toLowerCase().includes(searchTerm) ||
-            user.phone?.toLowerCase().includes(searchTerm)
-        );
-        this.displayParticipants(this.filteredData);
     }
 
     showNoData() {
