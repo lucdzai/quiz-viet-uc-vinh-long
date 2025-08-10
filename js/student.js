@@ -76,7 +76,183 @@ class StudentDataManager {
             source: 'student-app'
         };
 
-        return enhanced;
+        // Format and validate core user data fields
+        return this.formatUserData(enhanced);
+    }
+
+    /**
+     * Format and validate user data for consistent display
+     */
+    formatUserData(userData) {
+        const formatted = { ...userData };
+
+        // Ensure required fields have proper values
+        formatted.name = this.validateAndFormatString(userData.name, 'Chưa có tên');
+        formatted.phone = this.validateAndFormatPhone(userData.phone);
+        formatted.classType = this.validateAndFormatString(userData.classType, 'chua-chon');
+        
+        // Format timestamp consistently
+        formatted.timestamp = this.formatTimestamp(userData.timestamp);
+        formatted.formattedDate = this.formatDisplayDate(userData.timestamp);
+        formatted.formattedTime = this.formatDisplayTime(userData.timestamp);
+        
+        // Format score if present
+        if (typeof userData.score !== 'undefined') {
+            formatted.score = this.validateScore(userData.score);
+            formatted.scoreDisplay = `${formatted.score}/5`;
+        }
+
+        // Format prize if present
+        if (userData.prize) {
+            formatted.prize = this.validateAndFormatString(userData.prize, 'Chưa có');
+        }
+
+        // Format choice if present
+        if (userData.choice) {
+            formatted.choice = this.validateChoice(userData.choice);
+            formatted.choiceDisplay = this.getChoiceDisplayText(formatted.choice);
+        }
+
+        return formatted;
+    }
+
+    /**
+     * Validate and format string fields
+     */
+    validateAndFormatString(value, defaultValue = 'Chưa có') {
+        if (!value || value.trim() === '' || value === 'undefined' || value === 'null') {
+            return defaultValue;
+        }
+        return value.trim();
+    }
+
+    /**
+     * Validate and format phone number
+     */
+    validateAndFormatPhone(phone) {
+        if (!phone || phone.trim() === '' || phone === 'undefined' || phone === 'null') {
+            return 'Chưa có SĐT';
+        }
+        
+        // Clean phone number (remove spaces, dashes)
+        const cleaned = phone.toString().replace(/[\s\-\(\)]/g, '');
+        
+        // Basic Vietnamese phone validation
+        if (cleaned.match(/^(\+84|84|0)[0-9]{8,9}$/)) {
+            return cleaned;
+        }
+        
+        return phone.toString().trim();
+    }
+
+    /**
+     * Validate score value
+     */
+    validateScore(score) {
+        const numScore = typeof score === 'number' ? score : parseInt(score);
+        if (isNaN(numScore) || numScore < 0 || numScore > 5) {
+            return 0;
+        }
+        return numScore;
+    }
+
+    /**
+     * Validate choice value
+     */
+    validateChoice(choice) {
+        const validChoices = ['register', 'decline'];
+        return validChoices.includes(choice) ? choice : '';
+    }
+
+    /**
+     * Get display text for choice
+     */
+    getChoiceDisplayText(choice) {
+        const displayTexts = {
+            'register': 'Đăng ký khóa học',
+            'decline': 'Từ chối đăng ký',
+            '': 'Chưa quyết định'
+        };
+        return displayTexts[choice] || 'Chưa quyết định';
+    }
+
+    /**
+     * Format timestamp to ISO string
+     */
+    formatTimestamp(timestamp) {
+        if (!timestamp) {
+            return new Date().toISOString();
+        }
+        
+        try {
+            const date = new Date(timestamp);
+            if (isNaN(date.getTime())) {
+                return new Date().toISOString();
+            }
+            return date.toISOString();
+        } catch (error) {
+            return new Date().toISOString();
+        }
+    }
+
+    /**
+     * Format date for display in admin panel
+     */
+    formatDisplayDate(timestamp) {
+        try {
+            const date = new Date(timestamp);
+            if (isNaN(date.getTime())) {
+                return 'Không xác định';
+            }
+            return date.toLocaleDateString('vi-VN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+        } catch (error) {
+            return 'Không xác định';
+        }
+    }
+
+    /**
+     * Format time for display in admin panel
+     */
+    formatDisplayTime(timestamp) {
+        try {
+            const date = new Date(timestamp);
+            if (isNaN(date.getTime())) {
+                return 'Không xác định';
+            }
+            return date.toLocaleTimeString('vi-VN', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        } catch (error) {
+            return 'Không xác định';
+        }
+    }
+
+    /**
+     * Format full date and time for display
+     */
+    formatDisplayDateTime(timestamp) {
+        try {
+            const date = new Date(timestamp);
+            if (isNaN(date.getTime())) {
+                return 'Không xác định';
+            }
+            return date.toLocaleString('vi-VN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        } catch (error) {
+            return 'Không xác định';
+        }
     }
 
     /**
