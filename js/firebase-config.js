@@ -19,7 +19,7 @@ const FIREBASE_CONFIG = {
 
 // Firebase database reference paths
 const DB_PATHS = {
-    USERS: 'users',
+    PLAYERS: 'players',
     STATS: 'stats'
 };
 
