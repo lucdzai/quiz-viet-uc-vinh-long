@@ -28,35 +28,72 @@ let firebaseApp = null;
 let database = null;
 
 /**
- * Initialize Firebase application with proper async sequence
+ * Initialize Firebase application with retry mechanism
  */
-async function initializeFirebase() {
-    if (firebaseApp) {
-        console.log('🔥 Firebase already initialized');
-        return firebaseApp;
-    }
+async function initializeFirebase(retryCount = 3) {
+    for (let i = 0; i < retryCount; i++) {
+        try {
+            if (!firebaseApp) {
+                // Check if Firebase modules are loaded
+                if (typeof window.firebase === 'undefined' || !window.firebase.initializeApp) {
+                    console.warn('⚠️ Firebase SDK not loaded. Please include Firebase scripts in your HTML.');
+                    console.info('💡 Application will continue in offline mode using localStorage');
+                    
+                    // Trigger fallback event immediately
+                    triggerConnectionUpdate(false, 'localStorage', 'Firebase SDK not available');
+                    throw new Error('Firebase SDK not available');
+                }
 
-    try {
-        // Check if Firebase modules are loaded
-        if (typeof window.firebase === 'undefined' || !window.firebase.initializeApp) {
-            console.warn('⚠️ Firebase SDK not loaded. Please include Firebase scripts in your HTML.');
-            console.info('💡 Application will continue in offline mode using localStorage');
+                firebaseApp = await window.firebase.initializeApp(FIREBASE_CONFIG);
+            }
             
-            // Trigger fallback event immediately
-            triggerConnectionUpdate(false, 'localStorage', 'Firebase SDK not available');
-            throw new Error('Firebase SDK not available');
-        }
+            database = window.firebase.database.getDatabase();
+            
+            // Add offline persistence
+            try {
+                if (window.firebase.database.enableIndexedDbPersistence) {
+                    await window.firebase.database.enableIndexedDbPersistence(database);
+                    console.log('✅ Offline persistence enabled');
+                }
+            } catch (persistenceError) {
+                if (persistenceError.code === 'failed-precondition') {
+                    console.warn('⚠️ Multiple tabs open, persistence can only be enabled in one tab at a time.');
+                } else if (persistenceError.code === 'unimplemented') {
+                    console.warn('⚠️ Browser does not support offline persistence');
+                } else {
+                    console.warn('⚠️ Failed to enable offline persistence:', persistenceError);
+                }
+            }
+            
+            // Test connection
+            const connRef = window.firebase.database.ref(database, '.info/connected');
+            await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    reject(new Error('Connection timeout'));
+                }, 5000);
 
-        firebaseApp = await window.firebase.initializeApp(FIREBASE_CONFIG);
-        database = window.firebase.database.getDatabase();
-        
-        console.log('✅ Firebase v10 initialized successfully');
-        await verifyDatabaseConnection();
-        
-        return firebaseApp;
-    } catch (error) {
-        console.error('❌ Firebase initialization failed:', error);
-        throw error;
+                window.firebase.database.onValue(connRef, (snap) => {
+                    clearTimeout(timeout);
+                    if (snap.val() === true) {
+                        console.log('✅ Firebase connection established');
+                        resolve(true);
+                    } else {
+                        reject(new Error('Connection failed'));
+                    }
+                }, (error) => {
+                    clearTimeout(timeout);
+                    reject(error);
+                });
+            });
+            
+            console.log('✅ Firebase v10 initialized successfully');
+            
+            return true;
+        } catch (error) {
+            console.error(`❌ Firebase initialization attempt ${i + 1} failed:`, error);
+            if (i === retryCount - 1) throw error;
+            await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+        }
     }
 }
 
@@ -249,6 +286,28 @@ function getFirebaseApp() {
 }
 
 /**
+ * Export database connection status
+ */
+function getDatabaseStatus() {
+    return new Promise((resolve) => {
+        try {
+            if (!database) {
+                resolve(false);
+                return;
+            }
+            
+            const connRef = window.firebase.database.ref(database, '.info/connected');
+            window.firebase.database.onValue(connRef, (snap) => {
+                resolve(snap.val() === true);
+            });
+        } catch (error) {
+            console.error('❌ Error checking database status:', error);
+            resolve(false);
+        }
+    });
+}
+
+/**
  * Check if Firebase is properly configured
  */
 function isFirebaseConfigured() {
@@ -401,6 +460,7 @@ window.FirebaseConfig = {
     initializeFirebase,
     getDatabase,
     getFirebaseApp,
+    getDatabaseStatus,
     isFirebaseConfigured,
     getConnectionStatus,
     testFirebaseConnection,

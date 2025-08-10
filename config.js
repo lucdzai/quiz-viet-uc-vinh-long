@@ -34,6 +34,14 @@ const config = {
     // Initialize new player with sanitized data
     async initializePlayer(playerData) {
         try {
+            // Check connection first
+            const isConnected = await this.getDatabaseStatus();
+            if (!isConnected) {
+                console.warn('⚠️ No connection, saving to localStorage');
+                this.saveToLocalStorage(playerData);
+                return true;
+            }
+
             const timestamp = Date.now();
             const playerId = `player_${timestamp}`;
             
@@ -66,8 +74,43 @@ const config = {
             return true;
         } catch (error) {
             console.error('❌ Failed to initialize player:', error);
+            // Fallback to localStorage
+            this.saveToLocalStorage(playerData);
+            return true;
+        }
+    },
+
+    // Get database connection status
+    async getDatabaseStatus() {
+        try {
+            if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabaseStatus) {
+                return await FirebaseConfig.getDatabaseStatus();
+            }
+            return false;
+        } catch (error) {
+            console.error('❌ Error checking database status:', error);
             return false;
         }
+    },
+
+    // Add localStorage fallback
+    saveToLocalStorage(playerData) {
+        const timestamp = Date.now();
+        const playerId = `player_${timestamp}`;
+        
+        const playerDataWithId = {
+            id: playerId,
+            startTime: new Date().toISOString(),
+            ...playerData,
+            score: 0,
+            prize: '',
+            finalDecision: '',
+            lastUpdated: new Date().toISOString()
+        };
+
+        localStorage.setItem('currentPlayer', JSON.stringify(playerDataWithId));
+        this.currentPlayerId = playerId;
+        console.log('✅ Player data saved to localStorage:', playerId);
     },
 
     // Update quiz result with validation
