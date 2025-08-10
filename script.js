@@ -226,8 +226,27 @@ const questionsByClass = {
     ]
 };
 
+// Initialize Firebase connection and application
+document.addEventListener('DOMContentLoaded', async () => {
+    // Initialize Firebase connection
+    try {
+        if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.initializeFirebase) {
+            await FirebaseConfig.initializeFirebase();
+            console.log('✅ Firebase initialized');
+        } else {
+            throw new Error('FirebaseConfig not available');
+        }
+    } catch (error) {
+        console.error('❌ Firebase initialization error:', error);
+        handleOfflineMode();
+    }
+
+    // Initialize application based on current page
+    initializeApplication();
+});
+
 // Khởi tạo ứng dụng
-window.onload = function() {
+function initializeApplication() {
     // Kiểm tra xem đang ở trang nào dựa trên tên file
     const currentPage = window.location.pathname.split('/').pop();
     
@@ -258,7 +277,27 @@ window.onload = function() {
             studentForm.style.display = 'none';
         }
     }
-};
+}
+
+// Handle offline mode
+function handleOfflineMode() {
+    console.log('🔄 Switching to offline mode');
+    // Show offline indicator or warning if needed
+    showNotification('⚠️ Chế độ offline - dữ liệu sẽ được lưu cục bộ', 'warning');
+}
+
+// Show quiz section after successful registration
+function showQuizSection() {
+    const playerForm = document.getElementById('info-form');
+    const quizSection = document.getElementById('quiz-container');
+    
+    if (playerForm) {
+        playerForm.style.display = 'none';
+    }
+    if (quizSection) {
+        quizSection.style.display = 'block';
+    }
+}
 
 // Tạo QR Code với URL thực tế
 function generateQR() {
@@ -364,75 +403,54 @@ if (infoForm) {
     // Hiển thị loading
     document.getElementById('loading').style.display = 'block';
     
-    // Lưu thông tin người dùng
-    currentUser = {
+    // Prepare player data for config.initializePlayer
+    const playerData = {
         name: document.getElementById('student-name').value.trim(),
         phone: document.getElementById('student-phone').value.trim(),
-        classType: document.getElementById('student-class').value,
-        timestamp: new Date().toISOString(),
-        userAgent: navigator.userAgent,
-        ipAddress: await getUserIP()
+        course: document.getElementById('student-class').value.trim()
     };
     
     // Validate
-    if (!currentUser.name || !currentUser.phone || !currentUser.classType) {
+    if (!playerData.name || !playerData.phone || !playerData.course) {
         alert('⚠️ Vui lòng điền đầy đủ thông tin!');
         document.getElementById('loading').style.display = 'none';
         return;
     }
     
     // Validate số điện thoại
-    if (!/^[0-9]{10,11}$/.test(currentUser.phone)) {
+    if (!/^[0-9]{10,11}$/.test(playerData.phone)) {
         alert('⚠️ Số điện thoại không hợp lệ! Vui lòng nhập 10-11 số.');
         document.getElementById('loading').style.display = 'none';
         return;
     }
     
     try {
-        // Use enhanced StudentData service if available, fallback to Database
-        let result;
-        if (typeof StudentData !== 'undefined' && StudentData.saveUserData) {
-            result = await StudentData.saveUserData(currentUser);
-        } else {
-            result = await Database.saveUserData(currentUser);
-        }
-        
-        if (result.success) {
-            userId = result.userId || currentUser.timestamp;
+        // Use config.initializePlayer instead of Database.saveUserData
+        if (await config.initializePlayer(playerData)) {
+            console.log('✅ Player data saved successfully');
+            
+            // Update currentUser for backward compatibility
+            currentUser = {
+                name: playerData.name,
+                phone: playerData.phone,
+                classType: playerData.course,
+                timestamp: new Date().toISOString(),
+                userAgent: navigator.userAgent,
+                ipAddress: await getUserIP()
+            };
+            userId = config.currentPlayerId;
             
             // Ẩn loading và chuyển sang quiz
             document.getElementById('loading').style.display = 'none';
             showQuiz();
-            
-            // Don't show notification here - StudentData service handles it
-            if (!result.offline && !result.fallback && typeof StudentData === 'undefined') {
-                showNotification('✅ Đã lưu thông tin thành công!', 'success');
-            } else if ((result.fallback || result.offline) && typeof StudentData === 'undefined') {
-                showNotification('⚠️ Đã lưu thông tin tạm thời (offline mode)', 'warning');
-            }
+            showNotification('✅ Đã lưu thông tin thành công!', 'success');
         } else {
-            throw new Error('Không thể lưu thông tin');
+            throw new Error('Failed to save player data');
         }
     } catch (error) {
-        console.error('Lỗi lưu thông tin:', error);
+        console.error('❌ Error saving player data:', error);
         document.getElementById('loading').style.display = 'none';
-        
-        // Enhanced error handling
-        if (error.name === 'TypeError' && error.message.includes('fetch')) {
-            showNotification('⚠️ Không có kết nối internet. Dữ liệu sẽ được lưu tạm thời.', 'warning');
-            // Try localStorage fallback
-            try {
-                const fallbackResult = Database.saveToLocalStorage ? 
-                    Database.saveToLocalStorage(currentUser) : 
-                    { userId: currentUser.timestamp, success: true };
-                userId = fallbackResult.userId;
-                showQuiz();
-            } catch (fallbackError) {
-                alert('❌ Có lỗi nghiêm trọng. Vui lòng thử lại!');
-            }
-        } else {
-            alert('❌ Có lỗi xảy ra khi lưu thông tin. Vui lòng thử lại!');
-        }
+        alert('Có lỗi xảy ra khi lưu thông tin. Vui lòng thử lại.');
     }
     });
 }
