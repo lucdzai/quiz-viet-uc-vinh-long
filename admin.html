@@ -6,39 +6,22 @@
     <link rel="stylesheet" href="admin.css">
 </head>
 <body>
-    <div class="admin-container">
-        <div class="toolbar">
-            <div class="search-box">
-                <input type="text" id="searchInput" placeholder="Tìm kiếm...">
-            </div>
-            <div class="actions">
-                <button id="refreshButton" class="btn">
-                    <span class="icon">⟳</span>
-                    Làm mới
-                </button>
-                <button id="exportButton" class="btn">
-                    <span class="icon">↓</span>
-                    Xuất Excel
-                </button>
-            </div>
-        </div>
-        <div class="table-container">
-            <table id="participantTable">
-                <thead>
-                    <tr>
-                        <th width="50">STT</th>
-                        <th width="160">Thời gian</th>
-                        <th width="200">Họ và tên</th>
-                        <th width="120">Số điện thoại</th>
-                        <th width="120">Khóa học</th>
-                        <th width="80">Điểm số</th>
-                        <th width="150">Phần quà</th>
-                        <th width="150">Quyết định</th>
-                    </tr>
-                </thead>
-                <tbody id="participantData"></tbody>
-            </table>
-        </div>
+    <div class="admin-panel">
+        <h2>Quản lý người chơi</h2>
+        <div id="adminError" class="error-message" style="display: none;"></div>
+        <table class="players-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Tên</th>
+                    <th>Kết quả</th>
+                    <th>Thời gian bắt đầu</th>
+                    <th>Cập nhật lần cuối</th>
+                </tr>
+            </thead>
+            <tbody id="playersTableBody">
+            </tbody>
+        </table>
     </div>
 
     <!-- Firebase SDK v10.7.1 (Try CDN first, fallback handled by firebase-fallback.js) -->
