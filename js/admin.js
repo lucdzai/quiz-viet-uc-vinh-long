@@ -177,48 +177,83 @@ class AdminPanel {
     }
 
     /**
-     * Format display data with proper fallbacks
+     * Format display data with proper fallbacks and validation
      */
     formatDisplayData(user) {
         if (!user) return {};
         
+        // Helper function to safely get a value with fallback
+        const safeGet = (value, fallback) => {
+            if (value === null || value === undefined || value === 'undefined' || value === '') {
+                return fallback;
+            }
+            return value;
+        };
+        
         return {
             timestamp: this.formatDateTime(user.timestamp),
-            name: user.name && user.name !== 'undefined' ? user.name : 'Chưa có tên',
-            phone: user.phone && user.phone !== 'undefined' ? user.phone : 'Chưa có SĐT',
+            name: safeGet(user.name, 'Chưa có tên'),
+            phone: safeGet(user.phone, 'Chưa có SĐT'),
             classType: this.getClassDisplayName(user.classType) || 'Chưa chọn lớp',
-            score: user.score !== undefined ? `${user.score}/5` : 'Chưa làm',
-            prize: user.prize && user.prize !== 'undefined' ? user.prize : 'Chưa có',
+            score: user.score !== undefined && user.score !== null ? `${user.score}/5` : 'Chưa làm',
+            prize: safeGet(user.prize, 'Chưa có'),
             choice: this.getChoiceDisplayText(user.choice),
             status: this.getUserStatus(user)
         };
     }
 
     /**
-     * Get user status with proper formatting
+     * Get user status with proper formatting and validation
      */
     getUserStatus(user) {
+        if (!user) return '❓ Không xác định';
+        
+        // Check if user has made a final choice
+        if (user.choice === 'register') return '✅ Đã đăng ký';
+        if (user.choice === 'decline') return '❌ Từ chối đăng ký';
         if (user.choice) return '🏁 Hoàn tất';
-        if (user.score >= 3) return '🎯 Đạt vòng quay';
-        if (user.score !== undefined) return '✅ Hoàn thành';
-        return '⏳ Đang làm';
+        
+        // Check quiz completion status
+        if (user.score !== undefined && user.score !== null) {
+            if (user.score >= CONFIG.QUIZ_SETTINGS.PASS_SCORE) {
+                return '🎯 Đạt vòng quay';
+            } else {
+                return '✅ Hoàn thành quiz';
+            }
+        }
+        
+        // Check if user has started
+        if (user.timestamp) {
+            return '⏳ Đang làm bài';
+        }
+        
+        return '🔄 Mới bắt đầu';
     }
 
     /**
-     * Get choice display text
+     * Get choice display text with proper validation
      */
     getChoiceDisplayText(choice) {
+        if (!choice || choice === 'undefined' || choice === '') {
+            return 'Chưa quyết định';
+        }
+        
         switch(choice) {
-            case 'register': return '✅ Đăng ký';
-            case 'decline': return '❌ Từ chối';
-            default: return 'Chưa quyết định';
+            case 'register': return '✅ Đăng ký khóa học';
+            case 'decline': return '❌ Từ chối đăng ký';
+            case 'pending': return '⏳ Đang suy nghĩ';
+            default: return choice || 'Chưa quyết định';
         }
     }
 
     /**
-     * Get class display name
+     * Get class display name with validation
      */
     getClassDisplayName(classType) {
+        if (!classType || classType === 'undefined' || classType === '') {
+            return 'Chưa chọn lớp';
+        }
+        
         const displayNames = {
             'tieu-hoc': 'Khối Tiểu học',
             'thcs': 'Khối THCS', 
@@ -229,7 +264,8 @@ class AdminPanel {
             'tieng-anh-giao-tiep-11': 'Tiếng Anh giao tiếp 1-1',
             'chung-chi': 'Luyện thi chứng chỉ'
         };
-        return displayNames[classType] || classType || 'Chưa chọn lớp';
+        
+        return displayNames[classType] || classType;
     }
 
     /**
@@ -332,6 +368,56 @@ class AdminPanel {
                 element.className = `data-source-indicator ${className}`;
             }
         });
+    }
+
+    /**
+     * Update connection status display in the UI
+     */
+    updateConnectionDisplay(online, databaseType, error = null) {
+        const statusElement = document.getElementById('connection-status');
+        const refreshBtn = document.querySelector('.refresh-btn');
+        
+        if (!statusElement) return;
+        
+        let statusText = '';
+        let statusClass = '';
+        
+        if (online) {
+            switch(databaseType) {
+                case 'firebase':
+                    statusText = '🟢 Firebase (Online)';
+                    statusClass = 'status-online';
+                    break;
+                case 'google_sheets':
+                    statusText = '🟢 Google Sheets (Online)';
+                    statusClass = 'status-online';
+                    break;
+                default:
+                    statusText = '🟢 Online';
+                    statusClass = 'status-online';
+            }
+        } else {
+            if (error) {
+                statusText = `❌ Offline - ${error}`;
+                statusClass = 'status-error';
+            } else {
+                statusText = `🟡 ${databaseType || 'localStorage'} (Offline)`;
+                statusClass = 'status-offline';
+            }
+        }
+        
+        statusElement.textContent = statusText;
+        statusElement.className = `connection-status ${statusClass}`;
+        
+        // Update refresh button state
+        if (refreshBtn && !refreshBtn.disabled) {
+            refreshBtn.disabled = false;
+        }
+        
+        // Update data source indicator
+        this.updateDataSourceIndicator(online ? databaseType : 'localStorage');
+        
+        console.log(`🔌 Connection status updated: ${statusText}`);
     }
 
     /**

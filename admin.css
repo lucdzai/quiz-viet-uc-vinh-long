@@ -158,6 +158,13 @@
     border: 1px solid #f5c6cb;
 }
 
+.status-error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+    animation: pulse 1.5s infinite;
+}
+
 .status-checking {
     background: #fff3cd;
     color: #856404;
