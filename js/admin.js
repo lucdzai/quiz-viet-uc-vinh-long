@@ -1,6 +1,6 @@
 class AdminPanel {
     constructor() {
-        this.db = null;
+        this.db = this.getDB();
         this.tbody = document.getElementById('participantData');
         this.refreshButton = document.getElementById('refreshButton');
         this.exportButton = document.getElementById('exportButton');
@@ -14,18 +14,42 @@ class AdminPanel {
         this.exportButton.addEventListener('click', () => this.exportToExcel());
         this.searchInput.addEventListener('input', () => this.handleSearch());
         
-        // Initialize database reference
-        this.initializeDatabase();
-        
-        // Initial load
-        this.loadParticipants();
+        // Initialize real-time sync
+        this.initRealtimeSync();
     }
 
-    initializeDatabase() {
+    getDB() {
         // Use the existing Firebase infrastructure
         if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
-            this.db = FirebaseConfig.getDatabase();
+            return FirebaseConfig.getDatabase();
         }
+        return null;
+    }
+
+    initRealtimeSync() {
+        if (!this.db) {
+            console.warn('Database not available, falling back to manual refresh');
+            this.loadParticipants();
+            return;
+        }
+
+        const usersRef = window.firebase.database.ref(this.db, 'users');
+        
+        // Listen for data changes
+        window.firebase.database.onValue(usersRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                this.allData = Object.values(data)
+                    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                this.handleSearch();
+            } else {
+                this.allData = [];
+                this.showNoData();
+            }
+        }, (error) => {
+            console.error('Database error:', error);
+            this.showNoData();
+        });
     }
 
     async refreshData() {
@@ -67,6 +91,16 @@ class AdminPanel {
         this.tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">Không có dữ liệu</td></tr>';
     }
 
+    formatGift(gift) {
+        if (!gift) return '-';
+        // If gift is an object, return the name property
+        if (typeof gift === 'object') {
+            return gift.name || '-';
+        }
+        // If gift is a string, return it directly
+        return gift;
+    }
+
     displayParticipants(data) {
         this.tbody.innerHTML = '';
         if (!data.length) {
@@ -81,10 +115,10 @@ class AdminPanel {
                 <td>${this.formatTime(user.timestamp)}</td>
                 <td>${this.formatText(user.name)}</td>
                 <td>${this.formatText(user.phone)}</td>
-                <td>${this.formatCourse(user.classType)}</td>
-                <td>${user.score || 0}/5</td>
-                <td>${this.formatText(user.prize)}</td>
-                <td>${this.formatDecision(user.choice)}</td>
+                <td>${this.formatCourse(user.class_type || user.classType)}</td>
+                <td>${user.score || 0}/10</td>
+                <td>${this.formatGift(user.gift || user.prize)}</td>
+                <td>${this.formatDecision(user.decision || user.choice)}</td>
             `;
             this.tbody.appendChild(row);
         });
@@ -103,10 +137,10 @@ class AdminPanel {
             'Thời gian': this.formatTime(user.timestamp),
             'Họ và tên': user.name || '',
             'Số điện thoại': user.phone || '',
-            'Khóa học': this.formatCourse(user.classType),
-            'Điểm số': `${user.score || 0}/5`,
-            'Phần quà': user.prize || '',
-            'Quyết định': this.formatDecision(user.choice)
+            'Khóa học': this.formatCourse(user.class_type || user.classType),
+            'Điểm số': `${user.score || 0}/10`,
+            'Phần quà': this.formatGift(user.gift || user.prize),
+            'Quyết định': this.formatDecision(user.decision || user.choice)
         }));
 
         const ws = XLSX.utils.json_to_sheet(data);
@@ -125,10 +159,10 @@ class AdminPanel {
                 this.formatTime(user.timestamp),
                 user.name || '',
                 user.phone || '',
-                this.formatCourse(user.classType),
-                `${user.score || 0}/5`,
-                user.prize || '',
-                this.formatDecision(user.choice)
+                this.formatCourse(user.class_type || user.classType),
+                `${user.score || 0}/10`,
+                this.formatGift(user.gift || user.prize),
+                this.formatDecision(user.decision || user.choice)
             ].map(field => `"${field}"`).join(',');
             csv += row + '\n';
         });
