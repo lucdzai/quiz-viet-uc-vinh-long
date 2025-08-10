@@ -244,38 +244,82 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initialize application based on current page
     initializeApplication();
 
-    // Enhanced player form handling
-    const form = document.getElementById('info-form');
-    if (form) {
-        form.onsubmit = async (e) => {
-            e.preventDefault();
-            
-            try {
-                const playerData = {
-                    name: form.querySelector('#student-name').value.trim(),
-                    phone: form.querySelector('#student-phone').value.trim(),
-                    course: form.querySelector('#student-class').value.trim(),
-                    startTime: new Date().toISOString(),
-                    score: 0,
-                    prize: '',
-                    finalDecision: null
-                };
-
-                if (!playerData.name || !playerData.phone || !playerData.course) {
-                    alert('Vui lòng điền đầy đủ thông tin!');
-                    return;
-                }
-
-                if (await config.initializePlayer(playerData)) {
-                    console.log('✅ Đã lưu thông tin:', playerData);
-                    showQuizSection();
-                }
-            } catch (error) {
-                console.error('❌ Lỗi:', error);
-                alert('Có lỗi xảy ra: ' + error.message);
-            }
-        };
+    // Enhanced player form handling with improved error checking
+    const form = document.getElementById('playerForm') || document.getElementById('info-form');
+    
+    if (!form) {
+        console.error('❌ Không tìm thấy form đăng ký');
+        return;
     }
+
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        
+        try {
+            // Support both form structures - direct form elements or query selectors
+            let name, phone, course;
+            
+            if (form.name && form.phone && form.course) {
+                // Direct form element access
+                name = form.name.value.trim();
+                phone = form.phone.value.trim();
+                course = form.course.value.trim();
+            } else {
+                // Query selector approach for existing HTML structure
+                const nameField = form.querySelector('#student-name');
+                const phoneField = form.querySelector('#student-phone');
+                const courseField = form.querySelector('#student-class');
+                
+                if (!nameField || !phoneField || !courseField) {
+                    throw new Error('Form không có đủ các trường thông tin');
+                }
+                
+                name = nameField.value.trim();
+                phone = phoneField.value.trim();
+                course = courseField.value.trim();
+            }
+
+            const playerData = {
+                name: name,
+                phone: phone,
+                course: course,
+                startTime: new Date().toISOString(),
+                score: 0,
+                prize: '',
+                finalDecision: null
+            };
+
+            if (!playerData.name || !playerData.phone || !playerData.course) {
+                alert('Vui lòng điền đầy đủ thông tin!');
+                return;
+            }
+
+            console.log('🔄 Đang lưu thông tin...', playerData);
+
+            // Update currentUser with the form data
+            currentUser = {
+                name: playerData.name,
+                phone: playerData.phone,
+                classType: playerData.course,
+                startTime: playerData.startTime,
+                score: 0,
+                prize: '',
+                finalDecision: null
+            };
+
+            if (await config.initializePlayer(playerData)) {
+                console.log('✅ Đã lưu thông tin:', playerData);
+                if (typeof showQuizSection === 'function') {
+                    showQuizSection();
+                } else {
+                    throw new Error('Không tìm thấy hàm showQuizSection');
+                }
+            }
+        } catch (error) {
+            console.error('❌ Lỗi:', error);
+            alert('Có lỗi xảy ra: ' + error.message);
+        }
+    };
 });
 
 // Khởi tạo ứng dụng
@@ -428,7 +472,6 @@ async function updateStats() {
 }
 
 // Enhanced submitQuiz function for better async handling
-async function submitQuiz() {
 async function submitQuiz() {
     // Dừng timer
     stopQuizTimer();
@@ -1198,4 +1241,45 @@ async function showFinalScreen(userChoice = 'completed') {
     // Cập nhật currentUser với choice
     currentUser.finalChoice = userChoice;
     currentUser.finalChoiceTimestamp = new Date().toISOString();
+}
+
+// Additional helper functions for enhanced error handling
+
+async function submitQuizResult(result) {
+    try {
+        await config.updateQuizResult({
+            score: result.score,
+            timestamp: new Date().toISOString()
+        });
+        console.log('✅ Đã lưu điểm:', result.score);
+    } catch (error) {
+        console.error('❌ Lỗi lưu điểm:', error);
+        alert('Có lỗi khi lưu điểm: ' + error.message);
+    }
+}
+
+async function showWheelResultWithErrorHandling(prize) {
+    try {
+        await config.updateWheelResult({
+            prize: prize,
+            timestamp: new Date().toISOString()
+        });
+        console.log('✅ Đã lưu quà:', prize);
+    } catch (error) {
+        console.error('❌ Lỗi lưu quà:', error);
+        alert('Có lỗi khi lưu phần quà: ' + error.message);
+    }
+}
+
+async function showFinalScreenWithErrorHandling(decision) {
+    try {
+        await config.updateFinalChoice({
+            decision: decision,
+            timestamp: new Date().toISOString()
+        });
+        console.log('✅ Đã lưu quyết định:', decision);
+    } catch (error) {
+        console.error('❌ Lỗi lưu quyết định:', error);
+        alert('Có lỗi khi lưu quyết định: ' + error.message);
+    }
 }
