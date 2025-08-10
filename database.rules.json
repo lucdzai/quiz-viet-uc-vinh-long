@@ -7,6 +7,20 @@
         ".validate": "newData.hasChildren(['timestamp']) && newData.child('timestamp').isString()"
       }
     },
+    "players": {
+      ".read": true,
+      ".write": true,
+      "$playerId": {
+        ".validate": "newData.hasChildren(['startTime']) && newData.child('startTime').isNumber()"
+      }
+    },
+    "counters": {
+      ".read": true,
+      ".write": true,
+      "players": {
+        ".validate": "newData.isNumber()"
+      }
+    },
     "stats": {
       ".read": true,
       ".write": true,

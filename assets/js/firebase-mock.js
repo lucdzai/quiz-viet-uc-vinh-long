@@ -7,9 +7,79 @@
 // Mock Database class
 class MockDatabase {
     constructor() {
-        this.data = {};
+        this.data = this.loadFromStorage();
         this.listeners = new Map();
         console.log('🔥 Mock Firebase Database created');
+    }
+    
+    loadFromStorage() {
+        try {
+            const stored = localStorage.getItem('mockFirebaseData');
+            return stored ? JSON.parse(stored) : {};
+        } catch (error) {
+            return {};
+        }
+    }
+    
+    saveToStorage() {
+        try {
+            localStorage.setItem('mockFirebaseData', JSON.stringify(this.data));
+        } catch (error) {
+            console.warn('Failed to save mock data to localStorage');
+        }
+    }
+    
+    setData(path, value) {
+        const pathParts = path.split('/').filter(p => p);
+        let current = this.data;
+        
+        // Navigate to parent
+        for (let i = 0; i < pathParts.length - 1; i++) {
+            if (!current[pathParts[i]]) {
+                current[pathParts[i]] = {};
+            }
+            current = current[pathParts[i]];
+        }
+        
+        // Set value
+        if (pathParts.length > 0) {
+            current[pathParts[pathParts.length - 1]] = value;
+        } else {
+            this.data = value;
+        }
+        
+        this.saveToStorage();
+        this.notifyListeners(path, value);
+    }
+    
+    getData(path) {
+        if (!path) return this.data;
+        
+        const pathParts = path.split('/').filter(p => p);
+        let current = this.data;
+        
+        for (const part of pathParts) {
+            if (current && typeof current === 'object' && part in current) {
+                current = current[part];
+            } else {
+                return null;
+            }
+        }
+        
+        return current;
+    }
+    
+    notifyListeners(path, value) {
+        this.listeners.forEach((listener, id) => {
+            if (listener.path === path || path.startsWith(listener.path + '/') || listener.path.startsWith(path + '/') || listener.path === '') {
+                setTimeout(() => {
+                    listener.callback({
+                        val: () => this.getData(listener.path),
+                        exists: () => this.getData(listener.path) !== null
+                    });
+                }, 10);
+            }
+        });
     }
     
     ref(path = '') {
@@ -27,7 +97,7 @@ class MockDatabaseRef {
     
     set(value) {
         console.log(`🔥 Mock set ${this.path}:`, value);
-        this.mockData = value;
+        this.database.setData(this.path, value);
         
         // Simulate successful save
         return Promise.resolve({
@@ -39,7 +109,9 @@ class MockDatabaseRef {
     
     update(updates) {
         console.log(`🔥 Mock update ${this.path}:`, updates);
-        this.mockData = { ...this.mockData, ...updates };
+        const current = this.database.getData(this.path) || {};
+        const updated = { ...current, ...updates };
+        this.database.setData(this.path, updated);
         return Promise.resolve();
     }
     
@@ -55,28 +127,12 @@ class MockDatabaseRef {
         };
     }
     
-    once(eventType) {
-        console.log(`🔥 Mock once ${eventType} on ${this.path}`);
-        
-        // Special handling for connection info
-        if (this.path === '.info/connected') {
-            return Promise.resolve({
-                val: () => true,
-                exists: () => true
-            });
-        }
-        
-        if (this.path === '.info/serverTimeOffset') {
-            return Promise.resolve({
-                val: () => 0,
-                exists: () => true
-            });
-        }
-        
-        // Return mock data or empty object
+    get() {
+        console.log(`🔥 Mock get called on ${this.path}`);
+        const data = this.database.getData(this.path);
         return Promise.resolve({
-            val: () => this.mockData || {},
-            exists: () => Object.keys(this.mockData || {}).length > 0
+            val: () => data,
+            exists: () => data !== null
         });
     }
     
@@ -95,14 +151,19 @@ class MockDatabaseRef {
         } else {
             // Simulate data for other paths
             setTimeout(() => {
+                const data = this.database.getData(this.path);
                 callback({ 
-                    val: () => this.mockData || {},
-                    exists: () => Object.keys(this.mockData || {}).length > 0
+                    val: () => data,
+                    exists: () => data !== null
                 });
             }, 100);
         }
         
         return listenerId;
+    }
+    
+    onValue(callback, errorCallback) {
+        return this.on('value', callback);
     }
     
     off(eventType, callback) {

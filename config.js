@@ -379,6 +379,87 @@ const ConnectionStatus = {
     }
 };
 
+// Export configuration and functions
+const config = {
+    async updateQuizResult(playerId, result) {
+        if (!playerId) return;
+        try {
+            if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
+                const database = FirebaseConfig.getDatabase();
+                if (database) {
+                    const playerRef = window.firebase.database.ref(database, `players/${playerId}`);
+                    await window.firebase.database.update ? 
+                        window.firebase.database.update(playerRef, {
+                            score: result.score || result,
+                            lastUpdated: Date.now()
+                        }) :
+                        window.firebase.database.set(playerRef, {
+                            score: result.score || result,
+                            lastUpdated: Date.now()
+                        });
+                    console.log('✅ Quiz result updated');
+                    return true;
+                }
+            }
+        } catch (error) {
+            console.error('❌ Quiz update error:', error);
+        }
+        return false;
+    },
+
+    async updateWheelResult(playerId, prize) {
+        if (!playerId) return;
+        try {
+            if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
+                const database = FirebaseConfig.getDatabase();
+                if (database) {
+                    const playerRef = window.firebase.database.ref(database, `players/${playerId}`);
+                    await window.firebase.database.update ? 
+                        window.firebase.database.update(playerRef, {
+                            prize: prize,
+                            lastUpdated: Date.now()
+                        }) :
+                        window.firebase.database.set(playerRef, {
+                            prize: prize,
+                            lastUpdated: Date.now()
+                        });
+                    console.log('✅ Wheel result updated');
+                    return true;
+                }
+            }
+        } catch (error) {
+            console.error('❌ Wheel update error:', error);
+        }
+        return false;
+    },
+
+    async updateFinalChoice(playerId, decision) {
+        if (!playerId) return;
+        try {
+            if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
+                const database = FirebaseConfig.getDatabase();
+                if (database) {
+                    const playerRef = window.firebase.database.ref(database, `players/${playerId}`);
+                    await window.firebase.database.update ? 
+                        window.firebase.database.update(playerRef, {
+                            finalDecision: decision,
+                            lastUpdated: Date.now()
+                        }) :
+                        window.firebase.database.set(playerRef, {
+                            finalDecision: decision,
+                            lastUpdated: Date.now()
+                        });
+                    console.log('✅ Final choice updated');
+                    return true;
+                }
+            }
+        } catch (error) {
+            console.error('❌ Final choice update error:', error);
+        }
+        return false;
+    }
+};
+
 // Test connection khi load trang (chỉ cho admin)
 if (window.location.search.indexOf('student=true') === -1) {
     // Chỉ test khi không phải trang học sinh
