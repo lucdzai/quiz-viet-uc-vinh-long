@@ -78,34 +78,39 @@ class AdminPanel {
     }
 
     renderPlayersTable() {
-        const tableBody = document.getElementById('playersTableBody');
-        if (!tableBody) return;
+        const tbody = document.getElementById('playersTableBody');
+        if (!tbody) return;
 
-        // Clear existing rows
-        tableBody.innerHTML = '';
-
+        tbody.innerHTML = '';
+        
         // Check if we have data
         if (this.playersList.size === 0) {
-            tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Chưa có dữ liệu người chơi</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">Chưa có dữ liệu người chơi</td></tr>';
             return;
         }
 
-        // Add new rows
-        this.playersList.forEach((player, id) => {
+        // Sort players by STT
+        const sortedPlayers = Array.from(this.playersList.values())
+            .sort((a, b) => (a.stt || 0) - (b.stt || 0));
+
+        sortedPlayers.forEach(player => {
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td>${player.id}</td>
-                <td>${player.name || 'N/A'}</td>
-                <td>${player.gameResult || 'Chưa hoàn thành'}</td>
-                <td>${player.formattedStartTime}</td>
-                <td>${player.formattedLastUpdate}</td>
+                <td>${player.stt || ''}</td>
+                <td>${this.formatTimestamp(player.startTime)}</td>
+                <td>${player.name || ''}</td>
+                <td>${player.phone || ''}</td>
+                <td>${player.course || ''}</td>
+                <td>${player.score || 0}</td>
+                <td>${player.prize || ''}</td>
+                <td>${player.finalDecision || ''}</td>
             `;
-            tableBody.appendChild(row);
+            tbody.appendChild(row);
         });
     }
 
     formatTimestamp(timestamp) {
-        if (!timestamp) return 'N/A';
+        if (!timestamp) return '';
         const date = new Date(timestamp);
         return date.toLocaleString('vi-VN');
     }

@@ -12,7 +12,7 @@ class PlayerDataManager {
     constructor() {
         this.database = null;
         this.playerRef = null;
-        this.currentPlayer = null;
+        this.playerData = null;
         this.initialized = false;
         this.initializeFirebase();
     }
@@ -72,6 +72,16 @@ class PlayerDataManager {
         throw new Error('Firebase set not available');
     }
 
+    async get(ref) {
+        if (ref && typeof ref.get === 'function') {
+            return await ref.get();
+        }
+        if (ref && window.firebase && window.firebase.database && window.firebase.database.get) {
+            return await window.firebase.database.get(ref);
+        }
+        throw new Error('Firebase get not available');
+    }
+
     async update(ref, data) {
         if (ref && typeof ref.update === 'function') {
             return await ref.update(data);
@@ -89,55 +99,68 @@ class PlayerDataManager {
         throw new Error('Firebase update not available');
     }
 
-    serverTimestamp() {
-        if (window.firebase && window.firebase.database && window.firebase.database.serverTimestamp) {
-            return window.firebase.database.serverTimestamp();
-        }
-        return new Date().toISOString();
-    }
-
-    async initializePlayer(playerData) {
+    async initializePlayer(data) {
         try {
             // Wait for Firebase to be ready
             await this.waitForInitialization();
             
-            // Generate unique ID for player
-            const playerId = `player_${Date.now()}`;
-            this.playerRef = this.ref(this.database, `players/${playerId}`);
+            // Generate valid ID without special characters
+            const timestamp = Date.now();
+            const playerId = `player_${timestamp}`;
             
-            // Initialize player data
-            this.currentPlayer = {
+            this.playerData = {
                 id: playerId,
-                startTime: this.serverTimestamp(),
-                ...playerData
+                startTime: timestamp,
+                stt: await this.getNextSequence(),
+                name: data.name || '',
+                phone: data.phone || '',
+                course: data.course || '',
+                score: 0,
+                prize: '',
+                finalDecision: '',
+                lastUpdated: timestamp
             };
 
+            // Create reference with valid path
+            this.playerRef = this.ref(this.database, `players/${playerId}`);
+            
             // Save initial data
-            await this.set(this.playerRef, this.currentPlayer);
+            await this.set(this.playerRef, this.playerData);
             console.log('✅ Player initialized:', playerId);
-            return true;
+            return playerId;
         } catch (error) {
             console.error('❌ Failed to initialize player:', error);
             return false;
         }
     }
 
+    async getNextSequence() {
+        try {
+            const counterRef = this.ref(this.database, 'counters/players');
+            const snapshot = await this.get(counterRef);
+            const current = (snapshot.val() || 0) + 1;
+            await this.set(counterRef, current);
+            return current;
+        } catch (error) {
+            console.error('❌ Failed to get sequence number:', error);
+            return Date.now(); // Fallback to timestamp
+        }
+    }
+
     async updatePlayerData(updates) {
-        if (!this.playerRef || !this.currentPlayer) {
+        if (!this.playerRef || !this.playerData) {
             console.error('❌ Player not initialized');
             return false;
         }
 
         try {
-            // Update local state
-            this.currentPlayer = {
-                ...this.currentPlayer,
+            this.playerData = {
+                ...this.playerData,
                 ...updates,
-                lastUpdated: this.serverTimestamp()
+                lastUpdated: Date.now()
             };
 
-            // Update database
-            await this.update(this.playerRef, this.currentPlayer);
+            await this.set(this.playerRef, this.playerData);
             console.log('✅ Player data updated');
             return true;
         } catch (error) {
@@ -148,8 +171,8 @@ class PlayerDataManager {
 
     async saveGameResult(result) {
         return this.updatePlayerData({
-            gameResult: result,
-            completedAt: this.serverTimestamp()
+            score: result.score || result,
+            completedAt: Date.now()
         });
     }
 }

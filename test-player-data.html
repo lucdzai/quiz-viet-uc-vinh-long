@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Player Data</title>
+</head>
+<body>
+    <h2>Test Player Data Creation</h2>
+    <button onclick="addTestPlayer()">Add Test Player</button>
+    <div id="result"></div>
+
+    <!-- Firebase SDK v10.7.1 -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getDatabase, ref, set, get, push, onValue, serverTimestamp, increment, update } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+        
+        // Make Firebase modules available globally for compatibility
+        window.firebase = {
+            initializeApp,
+            database: {
+                getDatabase,
+                ref,
+                set,
+                get,
+                push,
+                onValue,
+                serverTimestamp,
+                increment,
+                update
+            }
+        };
+    </script>
+
+    <!-- Fallback Mock Firebase -->
+    <script src="assets/js/firebase-mock.js"></script>
+    
+    <!-- Application Scripts -->
+    <script src="js/firebase-config.js"></script>
+    <script src="js/firebase-fallback.js"></script>
+    <script src="js/student.js"></script>
+
+    <script>
+        async function addTestPlayer() {
+            const result = document.getElementById('result');
+            result.innerHTML = 'Creating test player...';
+
+            try {
+                // Wait for PlayerData to be ready
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                if (typeof PlayerData !== 'undefined') {
+                    const playerId = await PlayerData.initializePlayer({
+                        name: 'Nguyễn Văn A',
+                        phone: '0901234567',
+                        course: 'Tiếng Anh Giao Tiếp'
+                    });
+                    
+                    if (playerId) {
+                        result.innerHTML = `✅ Test player created with ID: ${playerId}`;
+                        
+                        // Add some test data updates
+                        setTimeout(async () => {
+                            await PlayerData.updatePlayerData({ score: 4 });
+                            result.innerHTML += '<br>✅ Score updated to 4';
+                        }, 1000);
+                        
+                        setTimeout(async () => {
+                            await PlayerData.updatePlayerData({ prize: 'Voucher 500k' });
+                            result.innerHTML += '<br>✅ Prize updated to Voucher 500k';
+                        }, 2000);
+                        
+                        setTimeout(async () => {
+                            await PlayerData.updatePlayerData({ finalDecision: 'Đăng ký học' });
+                            result.innerHTML += '<br>✅ Final decision updated';
+                        }, 3000);
+                    } else {
+                        result.innerHTML = '❌ Failed to create test player';
+                    }
+                } else {
+                    result.innerHTML = '❌ PlayerData not available';
+                }
+            } catch (error) {
+                result.innerHTML = `❌ Error: ${error.message}`;
+                console.error('Test error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
