@@ -228,23 +228,6 @@ const questionsByClass = {
 
 // Initialize Firebase connection and application
 document.addEventListener('DOMContentLoaded', async () => {
-    // Initialize Firebase connection
-    try {
-        if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.initializeFirebase) {
-            await FirebaseConfig.initializeFirebase();
-            console.log('✅ Firebase initialized');
-        } else {
-            throw new Error('FirebaseConfig not available');
-        }
-    } catch (error) {
-        console.error('❌ Firebase initialization error:', error);
-        handleOfflineMode();
-    }
-
-    // Initialize application based on current page
-    initializeApplication();
-
-    // Enhanced player form handling with improved error checking
     const form = document.getElementById('playerForm') || document.getElementById('info-form');
     
     if (!form) {
@@ -252,10 +235,34 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
+    // Pre-initialize Firebase
+    try {
+        if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.initializeFirebase) {
+            await FirebaseConfig.initializeFirebase();
+            console.log('✅ Firebase pre-initialized');
+        } else {
+            throw new Error('FirebaseConfig not available');
+        }
+    } catch (error) {
+        console.error('❌ Firebase pre-initialization failed:', error);
+        alert('Không thể kết nối đến máy chủ. Vui lòng thử lại sau.');
+        return;
+    }
+
+    // Initialize application based on current page
+    initializeApplication();
+
     form.onsubmit = async (e) => {
         e.preventDefault();
         
         try {
+            // Disable form while processing
+            const submitButton = form.querySelector('button[type="submit"]');
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.textContent = 'Đang xử lý...';
+            }
+
             // Support both form structures - direct form elements or query selectors
             let name, phone, course;
             
@@ -296,6 +303,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             console.log('🔄 Đang lưu thông tin...', playerData);
 
+            // Verify connection before saving
+            const isConnected = await verifyConnection();
+            if (!isConnected) {
+                throw new Error('Mất kết nối đến máy chủ');
+            }
+
             // Update currentUser with the form data
             currentUser = {
                 name: playerData.name,
@@ -309,18 +322,105 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (await config.initializePlayer(playerData)) {
                 console.log('✅ Đã lưu thông tin:', playerData);
-                if (typeof showQuizSection === 'function') {
-                    showQuizSection();
-                } else {
-                    throw new Error('Không tìm thấy hàm showQuizSection');
-                }
+                
+                // Show loading screen
+                const loadingScreen = document.createElement('div');
+                loadingScreen.innerHTML = `
+                    <div class="loading-overlay">
+                        <div class="loading-spinner"></div>
+                        <p>Đang chuyển trang...</p>
+                    </div>
+                `;
+                document.body.appendChild(loadingScreen);
+
+                // Transition to quiz section
+                setTimeout(() => {
+                    try {
+                        if (typeof showQuizSection === 'function') {
+                            showQuizSection();
+                        } else {
+                            throw new Error('Không tìm thấy hàm showQuizSection');
+                        }
+                    } catch (error) {
+                        console.error('❌ Lỗi chuyển trang:', error);
+                        alert('Có lỗi khi chuyển trang: ' + error.message);
+                    } finally {
+                        // Remove loading screen
+                        loadingScreen.remove();
+                    }
+                }, 1000);
             }
         } catch (error) {
             console.error('❌ Lỗi:', error);
             alert('Có lỗi xảy ra: ' + error.message);
+        } finally {
+            // Re-enable form
+            const submitButton = form.querySelector('button[type="submit"]');
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.textContent = 'Bắt đầu';
+            }
         }
     };
 });
+
+// Helper function to verify connection
+async function verifyConnection() {
+    try {
+        if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.verifyConnection) {
+            return await FirebaseConfig.verifyConnection();
+        }
+        
+        // Fallback verification
+        const db = FirebaseConfig?.getDatabase();
+        if (!db) return false;
+        
+        const connectedRef = window.firebase.database.ref(db, '.info/connected');
+        
+        return new Promise((resolve) => {
+            const unsubscribe = window.firebase.database.onValue(connectedRef, (snap) => {
+                unsubscribe();
+                resolve(snap.val() === true);
+            });
+        });
+    } catch (error) {
+        console.error('❌ Lỗi kiểm tra kết nối:', error);
+        return false;
+    }
+}
+
+// Add loading screen styles
+const style = document.createElement('style');
+style.textContent = `
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+`;
+document.head.appendChild(style);
 
 // Khởi tạo ứng dụng
 function initializeApplication() {

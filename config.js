@@ -11,7 +11,13 @@ const config = {
         }
     },
 
+    connectionStatus: false,
+    
     async initializePlayer(playerData) {
+        if (!this.connectionStatus) {
+            throw new Error('Không có kết nối đến máy chủ');
+        }
+        
         try {
             const phoneQuery = await this.checkPhoneExists(playerData.phone);
             if (phoneQuery) {
@@ -273,3 +279,29 @@ if (window.location.search.indexOf('student=true') === -1) {
         }, 1000);
     });
 }
+
+// Monitor connection status
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize connection monitoring for Firebase
+    if (typeof FirebaseConfig !== 'undefined') {
+        // Wait for Firebase to initialize
+        setTimeout(() => {
+            try {
+                const db = FirebaseConfig.getDatabase();
+                if (db && window.firebase?.database?.ref && window.firebase?.database?.onValue) {
+                    const connectedRef = window.firebase.database.ref(db, '.info/connected');
+                    window.firebase.database.onValue(connectedRef, (snap) => {
+                        config.connectionStatus = snap.val() === true;
+                        console.log('🔌 Trạng thái kết nối:', config.connectionStatus ? '✅ Đã kết nối' : '❌ Mất kết nối');
+                    });
+                } else {
+                    console.log('🔌 Firebase database not available, using localStorage mode');
+                    config.connectionStatus = false;
+                }
+            } catch (error) {
+                console.error('❌ Lỗi thiết lập monitor kết nối:', error);
+                config.connectionStatus = false;
+            }
+        }, 1000);
+    }
+});
