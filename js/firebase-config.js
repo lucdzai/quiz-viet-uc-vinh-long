@@ -11,7 +11,7 @@ const FIREBASE_CONFIG = {
     authDomain: "quiz-viet-uc-vinh-long.firebaseapp.com",
     databaseURL: "https://quiz-viet-uc-vinh-long-default-rtdb.asia-southeast1.firebasedatabase.app",
     projectId: "quiz-viet-uc-vinh-long",
-    storageBucket: "quiz-viet-uc-vinh-long.firebasestorage.app",
+    storageBucket: "quiz-viet-uc-vinh-long.appspot.com",
     messagingSenderId: "324450811055",
     appId: "1:324450811055:web:0c114401847a7c664ca85a",
     measurementId: "G-V1BRGTJTWW"
