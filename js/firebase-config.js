@@ -2,7 +2,7 @@
  * Firebase Configuration Module
  * 
  * This module provides Firebase Realtime Database configuration and initialization.
- * Updated for Firebase SDK v10.7.1 with modular imports.
+ * Updated for Firebase SDK v10.7.1 with modular imports or CDN (window.firebase).
  */
 
 // Firebase configuration object
@@ -41,8 +41,6 @@ async function initializeFirebase() {
             if (typeof window.firebase === 'undefined' || !window.firebase.initializeApp) {
                 console.warn('⚠️ Firebase SDK not loaded. Please include Firebase scripts in your HTML.');
                 console.info('💡 Application will continue in offline mode using localStorage');
-                
-                // Trigger fallback event immediately
                 triggerConnectionUpdate(false, 'localStorage', 'Firebase SDK not available');
                 throw new Error('Firebase SDK not available');
             }
@@ -56,17 +54,22 @@ async function initializeFirebase() {
             // Test connection
             const connectedRef = window.firebase.database.ref(database, '.info/connected');
             return new Promise((resolve, reject) => {
-                let unsubscribe; // khai báo trước để tránh TDZ
+                let resolved = false;
+                let unsubscribe = null;
 
                 const timeout = setTimeout(() => {
-                    if (typeof unsubscribe === 'function') unsubscribe();
-                    reject(new Error('Connection timeout'));
+                    if (!resolved) {
+                        resolved = true;
+                        if (typeof unsubscribe === 'function') unsubscribe();
+                        reject(new Error('Connection timeout'));
+                    }
                 }, 10000);
 
                 unsubscribe = window.firebase.database.onValue(
                     connectedRef, 
                     (snap) => {
-                        if (snap.val() === true) {
+                        if (!resolved && snap.val() === true) {
+                            resolved = true;
                             clearTimeout(timeout);
                             if (typeof unsubscribe === 'function') unsubscribe();
                             console.log('✅ Firebase connected successfully');
@@ -74,10 +77,13 @@ async function initializeFirebase() {
                         }
                     },
                     (error) => {
-                        clearTimeout(timeout);
-                        if (typeof unsubscribe === 'function') unsubscribe();
-                        console.error('❌ Firebase connection error:', error);
-                        reject(error);
+                        if (!resolved) {
+                            resolved = true;
+                            clearTimeout(timeout);
+                            if (typeof unsubscribe === 'function') unsubscribe();
+                            console.error('❌ Firebase connection error:', error);
+                            reject(error);
+                        }
                     }
                 );
             });
@@ -86,7 +92,6 @@ async function initializeFirebase() {
             if (initAttempts === MAX_INIT_ATTEMPTS) {
                 throw error;
             }
-            // Wait before retry
             await new Promise(resolve => setTimeout(resolve, 2000));
         }
     }
@@ -111,16 +116,10 @@ function getDatabase() {
     return database;
 }
 
-/**
- * Get Firebase app instance
- */
 function getFirebaseApp() {
     return firebaseApp;
 }
 
-/**
- * Export database connection status
- */
 function getDatabaseStatus() {
     return new Promise((resolve) => {
         try {
@@ -128,10 +127,23 @@ function getDatabaseStatus() {
                 resolve(false);
                 return;
             }
-            
             const connRef = window.firebase.database.ref(database, '.info/connected');
-            window.firebase.database.onValue(connRef, (snap) => {
-                resolve(snap.val() === true);
+            let resolved = false;
+            let unsubscribe = null;
+            const timeout = setTimeout(() => {
+                if (!resolved) {
+                    resolved = true;
+                    if (typeof unsubscribe === 'function') unsubscribe();
+                    resolve(false);
+                }
+            }, 4000);
+            unsubscribe = window.firebase.database.onValue(connRef, (snap) => {
+                if (!resolved) {
+                    resolved = true;
+                    clearTimeout(timeout);
+                    if (typeof unsubscribe === 'function') unsubscribe();
+                    resolve(snap.val() === true);
+                }
             });
         } catch (error) {
             console.error('❌ Error checking database status:', error);
@@ -140,45 +152,29 @@ function getDatabaseStatus() {
     });
 }
 
-/**
- * Check if Firebase is properly configured
- */
 function isFirebaseConfigured() {
     return FIREBASE_CONFIG.apiKey !== 'your-api-key-here' && 
            FIREBASE_CONFIG.projectId !== 'your-project-id';
 }
 
-/**
- * Verify actual database access with read/write test
- */
 async function verifyDatabaseAccess() {
     if (!database) {
         console.warn('⚠️ Cannot verify database access - database not initialized');
         return false;
     }
-    
     try {
         console.log('🔍 Verifying database access...');
-        
-        // Test writing to a safe path
         const testRef = window.firebase.database.ref(database, 'access_test');
         const testData = {
             timestamp: Date.now(),
             access_check: true
         };
-        
         await window.firebase.database.set(testRef, testData);
-        
-        // Test reading back
         const snapshot = await window.firebase.database.get(testRef);
         const success = snapshot.exists() && snapshot.val().access_check === true;
-        
         if (success) {
             console.log('✅ Database access verification successful');
-            // Clean up test data
             await window.firebase.database.set(testRef, null);
-            
-            // Trigger successful verification event
             window.dispatchEvent(new CustomEvent('databaseAccessVerified', { 
                 detail: { verified: true }
             }));
@@ -188,41 +184,16 @@ async function verifyDatabaseAccess() {
                 detail: { verified: false, reason: 'Data not readable' }
             }));
         }
-        
         return success;
-        
     } catch (error) {
         console.error('❌ Database access verification failed:', error);
-        console.error('❌ Access verification error details:', {
-            code: error.code,
-            message: error.message
-        });
-        
-        // Determine error type for better fallback handling
-        if (error.code === 'PERMISSION_DENIED') {
-            console.error('🔒 Database access denied - check Firebase security rules');
-            window.dispatchEvent(new CustomEvent('databaseAccessVerified', { 
-                detail: { verified: false, reason: 'Permission denied', shouldFallback: true }
-            }));
-        } else if (error.message && error.message.includes('Invalid token in path')) {
-            console.error('🔤 Invalid database path - check database structure');
-            window.dispatchEvent(new CustomEvent('databaseAccessVerified', { 
-                detail: { verified: false, reason: 'Invalid path', shouldFallback: true }
-            }));
-        } else {
-            console.error('🌐 Network or other error during access verification');
-            window.dispatchEvent(new CustomEvent('databaseAccessVerified', { 
-                detail: { verified: false, reason: 'Network error', shouldFallback: false }
-            }));
-        }
-        
+        window.dispatchEvent(new CustomEvent('databaseAccessVerified', { 
+            detail: { verified: false, reason: error.code || error.message }
+        }));
         return false;
     }
 }
 
-/**
- * Get Firebase connection status
- */
 function getConnectionStatus() {
     return {
         initialized: firebaseApp !== null,
@@ -232,56 +203,28 @@ function getConnectionStatus() {
     };
 }
 
-/**
- * Test Firebase connection with v10 syntax using valid database paths
- */
 async function testFirebaseConnection() {
     if (!firebaseApp || !database) {
         console.warn('⚠️ Firebase not initialized for connection test');
         return false;
     }
-    
     try {
-        // Test with a valid database path instead of .info paths to avoid "Invalid token in path" errors
         const testRef = window.firebase.database.ref(database, 'connection_test');
-        
-        // First try to write a test value
         const testData = {
             timestamp: Date.now(),
             test: true
         };
-        
         await window.firebase.database.set(testRef, testData);
         console.log('✅ Firebase write test successful');
-        
-        // Then try to read it back
         const snapshot = await window.firebase.database.get(testRef);
         const success = snapshot.exists() && snapshot.val().test === true;
-        
         if (success) {
             console.log('✅ Firebase read test successful');
-            // Clean up test data
             await window.firebase.database.set(testRef, null);
         }
-        
         return success;
     } catch (error) {
         console.error('❌ Firebase connection test failed:', error);
-        console.error('❌ Error details:', {
-            code: error.code,
-            message: error.message,
-            stack: error.stack
-        });
-        
-        // Check if it's a permission error vs network error
-        if (error.code === 'PERMISSION_DENIED') {
-            console.error('🔒 Database permission denied - check Firebase security rules');
-        } else if (error.code === 'NETWORK_ERROR') {
-            console.error('🌐 Network error - check internet connection');
-        } else if (error.message && error.message.includes('Invalid token in path')) {
-            console.error('🔤 Invalid path token error - using fallback connection test');
-        }
-        
         return false;
     }
 }
@@ -291,11 +234,9 @@ async function verifyConnection() {
     try {
         const db = getDatabase();
         if (!db) return false;
-
         const connectedRef = window.firebase.database.ref(db, '.info/connected');
         let resolved = false;
         let unsubscribe = null;
-
         return new Promise((resolve) => {
             const timeout = setTimeout(() => {
                 if (!resolved) {
@@ -304,7 +245,6 @@ async function verifyConnection() {
                     resolve(false);
                 }
             }, 5000);
-
             unsubscribe = window.firebase.database.onValue(
                 connectedRef,
                 (snap) => {
@@ -331,12 +271,25 @@ async function verifyConnection() {
     }
 }
 
+// Dummy function if not implemented
+function setupConnectionMonitoring() {
+    // You can implement connection monitoring here if needed
+}
+
+// Dummy for triggerConnectionUpdate if not defined elsewhere
+function triggerConnectionUpdate(status, mode, message) {
+    // Optional: Implement a global status update for your app here, or leave empty
+}
+
+// Dummy for databaseService if not defined elsewhere
+const databaseService = {};
+
 // Export configuration and functions
 window.FirebaseConfig = {
     FIREBASE_CONFIG,
     DB_PATHS,
     initializeFirebase,
-    initializeFirebaseCompat: initializeFirebaseCompat,
+    initializeFirebaseCompat,
     getDatabase,
     getFirebaseApp,
     getDatabaseStatus,
@@ -353,25 +306,20 @@ window.FirebaseConfig = {
 document.addEventListener('DOMContentLoaded', async function() {
     if (isFirebaseConfigured()) {
         console.log('🔥 Auto-initializing Firebase v10...');
-        
-        // Delay initialization to ensure Firebase SDK is loaded
         setTimeout(async () => {
             try {
                 if (typeof window.firebase !== 'undefined' && window.firebase.initializeApp) {
                     await initializeFirebase();
-                    // Set up connection monitoring after successful init
                     setupConnectionMonitoring();
                 } else {
                     console.warn('⚠️ Firebase SDK not available - falling back to localStorage mode');
-                    console.info('💡 Tip: This could be due to network issues, ad blockers, or CDN blocking');
-                    // Trigger fallback mode event with more informative message
                     triggerConnectionUpdate(false, 'localStorage', 'Firebase SDK not loaded - using offline mode');
                 }
             } catch (error) {
                 console.error('❌ Auto-initialization failed:', error);
                 triggerConnectionUpdate(false, 'localStorage', `Initialization failed: ${error.message}`);
             }
-        }, 200); // Increased delay for module loading
+        }, 200);
     } else {
         console.log('⚠️ Firebase not configured. Update FIREBASE_CONFIG in firebase-config.js');
         triggerConnectionUpdate(false, 'localStorage', 'Firebase not configured');
