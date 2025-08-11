@@ -56,24 +56,30 @@ async function initializeFirebase() {
             // Test connection
             const connectedRef = window.firebase.database.ref(database, '.info/connected');
             return new Promise((resolve, reject) => {
+                let unsubscribe; // khai báo trước để tránh TDZ
+
                 const timeout = setTimeout(() => {
-                    unsubscribe();
+                    if (typeof unsubscribe === 'function') unsubscribe();
                     reject(new Error('Connection timeout'));
                 }, 10000);
 
-                const unsubscribe = window.firebase.database.onValue(connectedRef, (snap) => {
-                    if (snap.val() === true) {
+                unsubscribe = window.firebase.database.onValue(
+                    connectedRef, 
+                    (snap) => {
+                        if (snap.val() === true) {
+                            clearTimeout(timeout);
+                            if (typeof unsubscribe === 'function') unsubscribe();
+                            console.log('✅ Firebase connected successfully');
+                            resolve(database);
+                        }
+                    },
+                    (error) => {
                         clearTimeout(timeout);
-                        unsubscribe();
-                        console.log('✅ Firebase connected successfully');
-                        resolve(database);
+                        if (typeof unsubscribe === 'function') unsubscribe();
+                        console.error('❌ Firebase connection error:', error);
+                        reject(error);
                     }
-                }, (error) => {
-                    clearTimeout(timeout);
-                    unsubscribe();
-                    console.error('❌ Firebase connection error:', error);
-                    reject(error);
-                });
+                );
             });
         } catch (error) {
             console.error(`❌ Firebase initialization attempt ${initAttempts} failed:`, error);
@@ -101,180 +107,6 @@ async function initializeFirebaseCompat(retryCount = 3) {
 function getDatabase() {
     if (!database) {
         throw new Error('⚠️ Firebase not initialized. Call initializeFirebase() first.');
-    }
-    return database;
-}
-
-/**
- * Verify database connection with proper async handling
- */
-async function verifyDatabaseConnection() {
-    if (!database) {
-        throw new Error('Database not available for verification');
-    }
-    
-    try {
-        console.log('🔍 Verifying database connection...');
-        
-        // Test with a safe path
-        const testRef = window.firebase.database.ref(database, 'connection_test');
-        const testData = {
-            timestamp: Date.now(),
-            test: true
-        };
-        
-        await window.firebase.database.set(testRef, testData);
-        
-        // Test reading back
-        const snapshot = await window.firebase.database.get(testRef);
-        const success = snapshot.exists() && snapshot.val().test === true;
-        
-        if (success) {
-            console.log('✅ Database connection verified');
-            // Clean up test data
-            await window.firebase.database.set(testRef, null);
-        }
-        
-        return success;
-    } catch (error) {
-        console.error('❌ Database connection verification failed:', error);
-        throw error;
-    }
-}
-
-// Centralized database service with proper error handling
-const databaseService = {
-    update: async (path, data) => {
-        const db = getDatabase();
-        try {
-            const ref = window.firebase.database.ref(db, path);
-            await window.firebase.database.set(ref, data);
-            console.log(`✅ Update successful for ${path}`);
-            return true;
-        } catch (error) {
-            console.error(`❌ Update failed for ${path}:`, error);
-            return false;
-        }
-    },
-    
-    get: async (path) => {
-        const db = getDatabase();
-        try {
-            const ref = window.firebase.database.ref(db, path);
-            const snapshot = await window.firebase.database.get(ref);
-            return snapshot.exists() ? snapshot.val() : null;
-        } catch (error) {
-            console.error(`❌ Get failed for ${path}:`, error);
-            throw error;
-        }
-    },
-    
-    push: async (path, data) => {
-        const db = getDatabase();
-        try {
-            const ref = window.firebase.database.ref(db, path);
-            const newRef = await window.firebase.database.push(ref, data);
-            console.log(`✅ Push successful for ${path}`);
-            return newRef.key;
-        } catch (error) {
-            console.error(`❌ Push failed for ${path}:`, error);
-            throw error;
-        }
-    },
-    
-    onValue: (path, callback, errorCallback) => {
-        const db = getDatabase();
-        try {
-            const ref = window.firebase.database.ref(db, path);
-            return window.firebase.database.onValue(ref, callback, errorCallback);
-        } catch (error) {
-            console.error(`❌ onValue setup failed for ${path}:`, error);
-            if (errorCallback) errorCallback(error);
-        }
-    }
-};
-
-/**
- * Trigger connection status update events
- */
-function triggerConnectionUpdate(online, databaseType, error = null) {
-    const detail = { 
-        online: online,
-        databaseType: databaseType
-    };
-    
-    if (error) {
-        detail.error = error;
-    }
-    
-    window.dispatchEvent(new CustomEvent('connectionStatusUpdate', { detail }));
-}
-
-/**
- * Set up Firebase connection monitoring with v10 syntax
- */
-function setupConnectionMonitoring() {
-    if (!database) {
-        console.info('📡 Connection monitoring not available - Firebase database not initialized');
-        return;
-    }
-    
-    try {
-        // Use .info/connected for connection monitoring - this is a special Firebase path
-        const connectedRef = window.firebase.database.ref(database, '.info/connected');
-        window.firebase.database.onValue(connectedRef, (snapshot) => {
-            const connected = snapshot.val();
-            console.log(`🔥 Firebase connection status: ${connected ? '✅ Connected' : '❌ Disconnected'}`);
-            
-            // Update global connection status
-            if (typeof ConnectionStatus !== 'undefined') {
-                ConnectionStatus.isOnline = connected;
-                ConnectionStatus.currentDatabaseType = connected ? 'firebase' : 'localStorage';
-            }
-            
-            // When connection is established, verify database access
-            if (connected) {
-                verifyDatabaseAccess();
-            }
-            
-            // Trigger custom event for UI updates
-            window.dispatchEvent(new CustomEvent('firebaseConnectionUpdate', { 
-                detail: { connected }
-            }));
-            
-            // Trigger connection status update for admin dashboard
-            triggerConnectionUpdate(
-                connected, 
-                connected ? 'firebase' : 'localStorage',
-                connected ? null : 'Firebase disconnected'
-            );
-        }, (error) => {
-            console.error('❌ Firebase connection monitoring failed:', error);
-            console.error('❌ Connection monitoring error details:', {
-                code: error.code,
-                message: error.message
-            });
-            console.info('📱 Continuing in offline mode');
-            
-            // Trigger error event with more detail
-            triggerConnectionUpdate(false, 'localStorage', `Connection monitoring failed: ${error.message}`);
-        });
-    } catch (error) {
-        console.error('❌ Failed to setup connection monitoring:', error);
-        console.error('❌ Setup error details:', {
-            message: error.message,
-            stack: error.stack
-        });
-    }
-}
-
-/**
- * Get Firebase database reference
- */
-function getDatabase() {
-    if (!database) {
-        console.warn('⚠️ Firebase not initialized. Call initializeFirebase() first.');
-        return null;
     }
     return database;
 }
