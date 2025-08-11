@@ -27,73 +27,74 @@ const DB_PATHS = {
 let firebaseApp = null;
 let database = null;
 
-/**
- * Initialize Firebase application with retry mechanism
- */
-async function initializeFirebase(retryCount = 3) {
-    for (let i = 0; i < retryCount; i++) {
-        try {
-            if (!firebaseApp) {
-                // Check if Firebase modules are loaded
-                if (typeof window.firebase === 'undefined' || !window.firebase.initializeApp) {
-                    console.warn('⚠️ Firebase SDK not loaded. Please include Firebase scripts in your HTML.');
-                    console.info('💡 Application will continue in offline mode using localStorage');
-                    
-                    // Trigger fallback event immediately
-                    triggerConnectionUpdate(false, 'localStorage', 'Firebase SDK not available');
-                    throw new Error('Firebase SDK not available');
-                }
+// Add retry mechanism for Firebase initialization
+let initAttempts = 0;
+const MAX_INIT_ATTEMPTS = 3;
 
+async function initializeFirebase() {
+    while (initAttempts < MAX_INIT_ATTEMPTS) {
+        try {
+            initAttempts++;
+            console.log(`🔄 Firebase initialization attempt ${initAttempts}...`);
+            
+            // Check if Firebase modules are loaded
+            if (typeof window.firebase === 'undefined' || !window.firebase.initializeApp) {
+                console.warn('⚠️ Firebase SDK not loaded. Please include Firebase scripts in your HTML.');
+                console.info('💡 Application will continue in offline mode using localStorage');
+                
+                // Trigger fallback event immediately
+                triggerConnectionUpdate(false, 'localStorage', 'Firebase SDK not available');
+                throw new Error('Firebase SDK not available');
+            }
+
+            if (!firebaseApp) {
                 firebaseApp = await window.firebase.initializeApp(FIREBASE_CONFIG);
             }
             
             database = window.firebase.database.getDatabase();
             
-            // Add offline persistence
-            try {
-                if (window.firebase.database.enableIndexedDbPersistence) {
-                    await window.firebase.database.enableIndexedDbPersistence(database);
-                    console.log('✅ Offline persistence enabled');
-                }
-            } catch (persistenceError) {
-                if (persistenceError.code === 'failed-precondition') {
-                    console.warn('⚠️ Multiple tabs open, persistence can only be enabled in one tab at a time.');
-                } else if (persistenceError.code === 'unimplemented') {
-                    console.warn('⚠️ Browser does not support offline persistence');
-                } else {
-                    console.warn('⚠️ Failed to enable offline persistence:', persistenceError);
-                }
-            }
-            
             // Test connection
-            const connRef = window.firebase.database.ref(database, '.info/connected');
-            await new Promise((resolve, reject) => {
+            const connectedRef = window.firebase.database.ref(database, '.info/connected');
+            return new Promise((resolve, reject) => {
                 const timeout = setTimeout(() => {
+                    unsubscribe();
                     reject(new Error('Connection timeout'));
-                }, 5000);
+                }, 10000);
 
-                window.firebase.database.onValue(connRef, (snap) => {
-                    clearTimeout(timeout);
+                const unsubscribe = window.firebase.database.onValue(connectedRef, (snap) => {
                     if (snap.val() === true) {
-                        console.log('✅ Firebase connection established');
-                        resolve(true);
-                    } else {
-                        reject(new Error('Connection failed'));
+                        clearTimeout(timeout);
+                        unsubscribe();
+                        console.log('✅ Firebase connected successfully');
+                        resolve(database);
                     }
                 }, (error) => {
                     clearTimeout(timeout);
+                    unsubscribe();
+                    console.error('❌ Firebase connection error:', error);
                     reject(error);
                 });
             });
-            
-            console.log('✅ Firebase v10 initialized successfully');
-            
-            return true;
         } catch (error) {
-            console.error(`❌ Firebase initialization attempt ${i + 1} failed:`, error);
-            if (i === retryCount - 1) throw error;
-            await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+            console.error(`❌ Firebase initialization attempt ${initAttempts} failed:`, error);
+            if (initAttempts === MAX_INIT_ATTEMPTS) {
+                throw error;
+            }
+            // Wait before retry
+            await new Promise(resolve => setTimeout(resolve, 2000));
         }
+    }
+}
+
+/**
+ * Legacy function for backward compatibility
+ */
+async function initializeFirebaseCompat(retryCount = 3) {
+    try {
+        return await initializeFirebase();
+    } catch (error) {
+        console.error('❌ Firebase initialization failed:', error);
+        throw error;
     }
 }
 
@@ -453,11 +454,32 @@ async function testFirebaseConnection() {
     }
 }
 
+// Helper function to verify connection before operations
+async function verifyConnection() {
+    try {
+        const db = getDatabase();
+        if (!db) return false;
+        
+        const connectedRef = window.firebase.database.ref(db, '.info/connected');
+        
+        return new Promise((resolve) => {
+            const unsubscribe = window.firebase.database.onValue(connectedRef, (snap) => {
+                unsubscribe();
+                resolve(snap.val() === true);
+            });
+        });
+    } catch (error) {
+        console.error('❌ Lỗi kiểm tra kết nối:', error);
+        return false;
+    }
+}
+
 // Export configuration and functions
 window.FirebaseConfig = {
     FIREBASE_CONFIG,
     DB_PATHS,
     initializeFirebase,
+    initializeFirebaseCompat: initializeFirebaseCompat,
     getDatabase,
     getFirebaseApp,
     getDatabaseStatus,
@@ -466,7 +488,8 @@ window.FirebaseConfig = {
     testFirebaseConnection,
     verifyDatabaseAccess,
     setupConnectionMonitoring,
-    databaseService
+    databaseService,
+    verifyConnection
 };
 
 // Auto-initialize Firebase when script loads (if configured)
