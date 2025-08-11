@@ -291,14 +291,39 @@ async function verifyConnection() {
     try {
         const db = getDatabase();
         if (!db) return false;
-        
+
         const connectedRef = window.firebase.database.ref(db, '.info/connected');
-        
+        let resolved = false;
+        let unsubscribe = null;
+
         return new Promise((resolve) => {
-            const unsubscribe = window.firebase.database.onValue(connectedRef, (snap) => {
-                unsubscribe();
-                resolve(snap.val() === true);
-            });
+            const timeout = setTimeout(() => {
+                if (!resolved) {
+                    resolved = true;
+                    if (typeof unsubscribe === 'function') unsubscribe();
+                    resolve(false);
+                }
+            }, 5000);
+
+            unsubscribe = window.firebase.database.onValue(
+                connectedRef,
+                (snap) => {
+                    if (!resolved) {
+                        resolved = true;
+                        clearTimeout(timeout);
+                        if (typeof unsubscribe === 'function') unsubscribe();
+                        resolve(snap.val() === true);
+                    }
+                },
+                (error) => {
+                    if (!resolved) {
+                        resolved = true;
+                        clearTimeout(timeout);
+                        if (typeof unsubscribe === 'function') unsubscribe();
+                        resolve(false);
+                    }
+                }
+            );
         });
     } catch (error) {
         console.error('❌ Lỗi kiểm tra kết nối:', error);
