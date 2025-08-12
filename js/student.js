@@ -125,7 +125,7 @@ function showQuiz(courseType) {
     // Create quiz HTML
     let quizHTML = `
         <div class="logo">
-            <img src="assets/logo.svg" alt="Logo Trung Tâm" class="center-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+            <img src="${window.APP_BRANDING?.logoUrl || 'assets/logo.svg'}" alt="Logo Trung Tâm" class="center-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
             <div class="logo-fallback" style="display: none;">🎓</div>
             <h2>🎯 Quiz - ${getCourseDisplayName(courseType)}</h2>
             <p>Chào mừng bạn đến với bài kiểm tra năng lực!</p>
@@ -554,7 +554,7 @@ function showResult(score, answers, totalQuestions) {
     
     let resultHTML = `
         <div class="logo">
-            <img src="assets/logo.svg" alt="Logo Trung Tâm" class="center-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+            <img src="${window.APP_BRANDING?.logoUrl || 'assets/logo.svg'}" alt="Logo Trung Tâm" class="center-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
             <div class="logo-fallback" style="display: none;">🎓</div>
             <h2>📊 Kết Quả Quiz</h2>
         </div>
@@ -620,7 +620,7 @@ function showCourseRegistration() {
     const quizContainer = document.getElementById('quiz-container');
     quizContainer.innerHTML = `
         <div class="logo">
-            <img src="assets/logo.svg" alt="Logo Trung Tâm" class="center-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+            <img src="${window.APP_BRANDING?.logoUrl || 'assets/logo.svg'}" alt="Logo Trung Tâm" class="center-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
             <div class="logo-fallback" style="display: none;">🎓</div>
             <h2>🎓 Đăng Ký Khóa Học</h2>
             <p>Mặc dù bạn chưa đạt điều kiện vào vòng quay, chúng tôi vẫn có nhiều ưu đãi đặc biệt cho bạn!</p>
@@ -714,7 +714,7 @@ function showWheel() {
     
     quizContainer.innerHTML = `
         <div class="logo">
-            <img src="assets/logo.svg" alt="Logo Trung Tâm" class="center-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+            <img src="${window.APP_BRANDING?.logoUrl || 'assets/logo.svg'}" alt="Logo Trung Tâm" class="center-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
             <div class="logo-fallback" style="display: none;">🎓</div>
             <h2>🎯 Vòng Quay May Mắn</h2>
             <p>Chúc mừng bạn! Bạn đã đạt điều kiện tham gia vòng quay</p>
@@ -747,15 +747,25 @@ function showWheel() {
             </div>
             <button class="spin-button" id="spin-btn" onclick="spinWheel()">🎯 Quay Thưởng</button>
             <div id="prize-result" style="display: none;">
-                <h3>🎉 Chúc mừng bạn!</h3>
-                <div class="won-prize">
-                    <span class="prize-icon-large" id="won-prize-icon"></span>
-                    <div class="prize-name-large" id="won-prize-name"></div>
-                    <div class="prize-description" id="won-prize-description"></div>
-                </div>
-                <div class="prize-actions">
-                    <button class="btn-primary" onclick="registerForPrize()">✅ Đăng ký nhận quà</button>
-                    <button class="btn-secondary" onclick="contactLater()">💬 Liên hệ lại sau</button>
+                <div class="modal-overlay show" id="prize-modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <div class="modal-icon">🎆</div>
+                            <h3>🎉 Chúc mừng bạn!</h3>
+                        </div>
+                        <div class="modal-body">
+                            <div class="won-prize" style="background: transparent; color: inherit; box-shadow: none;">
+                                <span class="prize-icon-large" id="won-prize-icon"></span>
+                                <div class="prize-name-large" id="won-prize-name"></div>
+                                <div class="prize-description" id="won-prize-description"></div>
+                            </div>
+                            <canvas id="confetti-canvas" width="320" height="160" style="width:100%;height:160px;"></canvas>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="modal-btn modal-btn-primary" onclick="registerForPrize()">✅ Đăng ký nhận quà</button>
+                            <button class="modal-btn modal-btn-secondary" onclick="contactLater()">💬 Liên hệ lại sau</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -807,6 +817,7 @@ function spinWheel() {
         document.getElementById('won-prize-description').textContent = currentPrize.description;
         
         prizeResult.style.display = 'block';
+        launchConfetti();
         spinBtn.style.display = 'none';
         
         console.log('🎉 Wheel stopped! Saving prize to Firebase...');
@@ -827,6 +838,41 @@ function spinWheel() {
             console.error('❌ Config or updateWheelResult not available');
         }
     }, 4000); // 4 seconds to match CSS animation
+}
+
+// Simple confetti effect
+function launchConfetti() {
+    const canvas = document.getElementById('confetti-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width = canvas.offsetWidth;
+    const H = canvas.height = canvas.offsetHeight;
+    const pieces = Array.from({ length: 80 }, () => ({
+        x: Math.random() * W,
+        y: Math.random() * -H,
+        r: Math.random() * 6 + 4,
+        d: Math.random() * 0.5 + 0.5,
+        color: `hsl(${Math.floor(Math.random()*360)}, 90%, 60%)`
+    }));
+    let frame = 0;
+    function draw() {
+        ctx.clearRect(0, 0, W, H);
+        pieces.forEach(p => {
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.fill();
+            p.y += p.d * 3;
+            p.x += Math.sin((frame + p.y) * 0.02);
+            if (p.y - p.r > H) {
+                p.y = -10;
+                p.x = Math.random() * W;
+            }
+        });
+        frame++;
+        if (frame < 300) requestAnimationFrame(draw);
+    }
+    draw();
 }
 
 // Prize wheel prizes
@@ -906,7 +952,7 @@ function contactLater() {
 
 function showFinalScreenWithPrize() {
     const quizContainer = document.getElementById('quiz-container');
-    const playerName = document.getElementById('student-name')?.value || 'Bạn';
+    const playerName = document.getElementById('student-name')?.value || currentUser?.name || 'Bạn';
     
     quizContainer.innerHTML = `
         <div class="logo">
@@ -931,14 +977,16 @@ function showFinalScreenWithPrize() {
         
         <div class="contact-info">
             <h3>📞 Thông tin liên hệ:</h3>
-            <p><strong>🏢 Địa chỉ:</strong> Số 36/7, đường Trần Phú, Phường Phước Hậu, Tỉnh Vĩnh Long</p>
-            <p><strong>📱 Hotline:</strong> 02703.912.007</p>
-            <p><strong>📧 Email:</strong> ngoainguvietuceducation@gmail.com</p>
-            <p><strong>🌐 Website:</strong> ngoainguvietuc.vn</p>
+            <p><strong>📘 Facebook:</strong> <a href="${CONFIG.CENTER_INFO.facebook}" target="_blank">trungtamngoainguVietUc</a></p>
+            <p><strong>📧 Email:</strong> ${CONFIG.CENTER_INFO.email}</p>
+            <p><strong>🌐 Website:</strong> ${CONFIG.CENTER_INFO.website.replace('https://','')}</p>
+            <p><strong>🏢 Địa chỉ:</strong> ${CONFIG.CENTER_INFO.address}</p>
+            <p><strong>☎️ Hotline:</strong> ${CONFIG.CENTER_INFO.hotline}</p>
+            <p><strong>💬 Zalo:</strong> <a href="https://zalo.me/${CONFIG.CENTER_INFO.zalo}" target="_blank">${CONFIG.CENTER_INFO.zalo}</a></p>
         </div>
         
         <div class="final-actions">
-            <button class="btn-primary" onclick="window.open('tel:02703.912.007')">📞 Gọi ngay</button>
+            <button class="btn-primary" onclick="window.open('https://zalo.me/${CONFIG.CENTER_INFO.zalo}','_blank')">💬 Liên hệ Zalo</button>
             <button class="btn-secondary" onclick="location.reload()">🔄 Làm lại</button>
         </div>
     `;
@@ -969,10 +1017,12 @@ function showFinalScreenContactLater() {
         
         <div class="contact-info">
             <h3>📞 Thông tin liên hệ:</h3>
-            <p><strong>🏢 Địa chỉ:</strong> Số 36/7, đường Trần Phú, Phường Phước Hậu, Tỉnh Vĩnh Long</p>
-            <p><strong>💬 Zalo:</strong> <a href="https://zalo.me/0372284333" target="_blank">0372284333</a></p>
-            <p><strong>📧 Email:</strong> ngoainguvietuceducation@gmail.com</p>
-            <p><strong>🌐 Website:</strong> ngoainguvietuc.vn</p>
+            <p><strong>📘 Facebook:</strong> <a href="${CONFIG.CENTER_INFO.facebook}" target="_blank">trungtamngoainguVietUc</a></p>
+            <p><strong>📧 Email:</strong> ${CONFIG.CENTER_INFO.email}</p>
+            <p><strong>🌐 Website:</strong> ${CONFIG.CENTER_INFO.website.replace('https://','')}</p>
+            <p><strong>🏢 Địa chỉ:</strong> ${CONFIG.CENTER_INFO.address}</p>
+            <p><strong>☎️ Hotline:</strong> ${CONFIG.CENTER_INFO.hotline}</p>
+            <p><strong>💬 Zalo:</strong> <a href="https://zalo.me/${CONFIG.CENTER_INFO.zalo}" target="_blank">${CONFIG.CENTER_INFO.zalo}</a></p>
         </div>
         
         <div class="final-actions">

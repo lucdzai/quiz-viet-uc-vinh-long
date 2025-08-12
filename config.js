@@ -189,7 +189,8 @@ const CONFIG = {
         email: 'ngoainguvietuceducation@gmail.com',
         website: 'https://ngoainguvietuc.vn',
         facebook: 'https://www.facebook.com/trungtamngoainguVietUc',
-        zalo: '0387.864.329'
+        zalo: '0372284333',
+        logoUrl: 'assets/logo.svg'
     },
     
     // Cấu hình khác
@@ -198,6 +199,14 @@ const CONFIG = {
         TOTAL_QUESTIONS: 5,
         TIME_LIMIT: 300 // 5 phút (giây)
     }
+};
+
+// Branding config to allow swapping logo/background without touching code
+window.APP_BRANDING = {
+    // Replace after you upload your assets
+    logoUrl: (CONFIG?.CENTER_INFO?.logoUrl) || 'assets/logo.svg',
+    // Put your building/background image here, e.g., 'assets/center-bg.jpg'
+    backgroundUrl: 'assets/background.jpg'
 };
 
 // Legacy database helper functions for backward compatibility
