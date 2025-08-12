@@ -977,7 +977,7 @@ function showFinalScreenWithPrize() {
     
     quizContainer.innerHTML = `
         <div class="logo">
-            <img src="assets/logo.svg" alt="Logo Trung Tâm" class="center-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+            <img src="${window.APP_BRANDING?.logoUrl || 'assets/logo.svg'}" alt="Logo Trung Tâm" class="center-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
             <div class="logo-fallback" style="display: none;">🎓</div>
             <h2>Trung Tâm Ngoại Ngữ Việt Úc Vĩnh Long</h2>
         </div>
