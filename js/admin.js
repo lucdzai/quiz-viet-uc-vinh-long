@@ -12,6 +12,17 @@ class AdminPanel {
             'prize5': 'Quà tặng đặc biệt'
         };
         
+        this.courseDisplayNames = {
+            'tieu-hoc': '🧒 Khối Tiểu học (Starters - Movers - Flyers)',
+            'thcs': '👨‍🎓 Khối THCS (Pre-KET - PET)',
+            'thpt': '🎓 Luyện thi THPT',
+            'tieng-trung': '🇨🇳 Tiếng Trung cơ bản',
+            'tieng-trung-11': '🇨🇳 Tiếng Trung cơ bản 1-1',
+            'tieng-anh-giao-tiep': '💬 Tiếng Anh giao tiếp',
+            'tieng-anh-giao-tiep-11': '💬 Tiếng Anh giao tiếp 1-1',
+            'chung-chi': '🏆 Luyện thi chứng chỉ (B1, B2, TOEIC, IELTS)'
+        };
+        
         this.initialize();
     }
 
@@ -30,9 +41,10 @@ class AdminPanel {
                         console.log('📊 Dữ liệu:', data);
                         this.updatePlayersList(data);
                         this.renderPlayersTable();
+                        this.updateStats();
                     }, (error) => {
                         console.error('❌ Lỗi:', error);
-                        alert('Có lỗi khi tải dữ liệu. Vui lòng thử lại.');
+                        this.showError('Có lỗi khi tải dữ liệu. Vui lòng thử lại.');
                     });
                 }
             }
@@ -66,25 +78,41 @@ class AdminPanel {
                 
                 this.playersList.set(id, {
                     id,
-                    stt: player.stt || 0,
+                    stt: player.stt || this.getNextSequence(),
                     startTime: this.formatTimestamp(player.startTime),
                     name: player.name || 'Chưa có tên',
                     phone: phone || 'Chưa có SĐT',
-                    course: player.course || 'Chưa chọn khóa học',
-                    score: Number(player.score || 0),
+                    course: this.formatCourse(player.course),
+                    score: this.formatScore(player.score),
                     prize: this.formatPrize(player.prize),
-                    finalDecision: this.formatDecision(player.finalDecision)
+                    finalDecision: this.formatDecision(player.finalDecision),
+                    rawData: player // Store raw data for additional info
                 });
             }
         });
     }
 
+    getNextSequence() {
+        return this.playersList.size + 1;
+    }
+
     formatTimestamp(timestamp) {
         if (!timestamp) return 'Chưa có thời gian';
         try {
-            const date = typeof timestamp === 'object' ? 
-                new Date(timestamp.seconds * 1000) : 
-                new Date(timestamp);
+            let date;
+            if (timestamp && typeof timestamp === 'object' && timestamp.seconds) {
+                // Firebase timestamp
+                date = new Date(timestamp.seconds * 1000);
+            } else if (timestamp) {
+                // ISO string or other format
+                date = new Date(timestamp);
+            } else {
+                return 'Chưa có thời gian';
+            }
+            
+            if (isNaN(date.getTime())) {
+                return 'Lỗi định dạng';
+            }
             
             return date.toLocaleString('vi-VN', {
                 year: 'numeric',
@@ -101,15 +129,29 @@ class AdminPanel {
         }
     }
 
+    formatCourse(course) {
+        if (!course) return 'Chưa chọn khóa học';
+        return this.courseDisplayNames[course] || course;
+    }
+
+    formatScore(score) {
+        if (score === null || score === undefined) return 'Chưa làm quiz';
+        if (score === 0) return '0/5';
+        return `${score}/5`;
+    }
+
     formatPrize(prize) {
         if (!prize) return 'Chưa quay thưởng';
-        return this.prizeNames[prize] || prize;
+        if (typeof prize === 'string') {
+            return prize;
+        }
+        return this.prizeNames[prize] || 'Phần quà đặc biệt';
     }
 
     formatDecision(decision) {
-        if (decision === true) return 'Đồng ý';
-        if (decision === false) return 'Từ chối';
-        return 'Chưa quyết định';
+        if (decision === true || decision === 'register') return '✅ Đăng ký';
+        if (decision === false || decision === 'decline') return '❌ Từ chối';
+        return '⏳ Chưa quyết định';
     }
 
     renderPlayersTable() {
@@ -125,22 +167,79 @@ class AdminPanel {
             const row = document.createElement('tr');
             row.dataset.playerId = player.id;
             
+            // Add row classes for better styling
+            if (player.rawData && player.rawData.score >= 3) {
+                row.classList.add('passed-quiz');
+            }
+            if (player.rawData && player.rawData.finalDecision === true) {
+                row.classList.add('registered');
+            }
+            
             row.innerHTML = `
-                <td class="text-center">${player.stt}</td>
-                <td class="text-center">${player.startTime}</td>
-                <td>${player.name}</td>
-                <td>${player.phone}</td>
-                <td>${player.course}</td>
-                <td class="text-center">${player.score}</td>
-                <td>${player.prize}</td>
-                <td class="text-center">${player.finalDecision}</td>
+                <td class="text-center stt-cell">${player.stt}</td>
+                <td class="text-center time-cell">${player.startTime}</td>
+                <td class="name-cell">${player.name}</td>
+                <td class="phone-cell">${player.phone}</td>
+                <td class="course-cell">${player.course}</td>
+                <td class="text-center score-cell ${this.getScoreClass(player.rawData?.score)}">${player.score}</td>
+                <td class="prize-cell">${player.prize}</td>
+                <td class="text-center decision-cell ${this.getDecisionClass(player.rawData?.finalDecision)}">${player.finalDecision}</td>
             `;
             tbody.appendChild(row);
         });
 
+        this.updateTotalPlayers(sortedPlayers.length);
+    }
+
+    getScoreClass(score) {
+        if (score === null || score === undefined) return 'no-score';
+        if (score >= 3) return 'passed';
+        if (score > 0) return 'partial';
+        return 'failed';
+    }
+
+    getDecisionClass(decision) {
+        if (decision === true) return 'registered';
+        if (decision === false) return 'declined';
+        return 'pending';
+    }
+
+    updateTotalPlayers(total) {
         const totalPlayers = document.getElementById('totalPlayers');
         if (totalPlayers) {
-            totalPlayers.textContent = sortedPlayers.length;
+            totalPlayers.textContent = total;
+        }
+    }
+
+    updateStats() {
+        const players = Array.from(this.playersList.values());
+        
+        // Calculate statistics
+        const totalParticipants = players.length;
+        const completedQuiz = players.filter(p => p.rawData && p.rawData.score !== null && p.rawData.score !== undefined).length;
+        const passedQuiz = players.filter(p => p.rawData && p.rawData.score >= 3).length;
+        const registeredUsers = players.filter(p => p.rawData && p.rawData.finalDecision === true).length;
+        const declinedUsers = players.filter(p => p.rawData && p.rawData.finalDecision === false).length;
+        
+        // Update stats display if elements exist
+        this.updateStatElement('total-participants', totalParticipants);
+        this.updateStatElement('completed-quiz', completedQuiz);
+        this.updateStatElement('passed-quiz', passedQuiz);
+        this.updateStatElement('registered-users', registeredUsers);
+        this.updateStatElement('declined-users', declinedUsers);
+        
+        // Calculate percentages
+        const passRate = completedQuiz > 0 ? Math.round((passedQuiz / completedQuiz) * 100) : 0;
+        const conversionRate = totalParticipants > 0 ? Math.round((registeredUsers / totalParticipants) * 100) : 0;
+        
+        this.updateStatElement('pass-rate', `${passRate}%`);
+        this.updateStatElement('conversion-rate', `${conversionRate}%`);
+    }
+
+    updateStatElement(id, value) {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = value;
         }
     }
 
@@ -150,6 +249,75 @@ class AdminPanel {
             errorDiv.textContent = message;
             errorDiv.style.display = 'block';
         }
+        
+        // Also show as notification
+        this.showNotification(message, 'error');
+    }
+
+    showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `admin-notification ${type}`;
+        notification.textContent = message;
+        
+        document.body.appendChild(notification);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 5000);
+    }
+
+    // Export data to CSV
+    exportToCSV() {
+        const players = Array.from(this.playersList.values());
+        if (players.length === 0) {
+            this.showNotification('Không có dữ liệu để xuất!', 'warning');
+            return;
+        }
+
+        // CSV header with BOM for UTF-8
+        const BOM = '\uFEFF';
+        let csv = BOM + 'STT,Thời gian,Họ tên,Số điện thoại,Khóa học,Điểm số,Phần quà,Quyết định cuối cùng\n';
+        
+        players.forEach(player => {
+            const row = [
+                player.stt,
+                `"${player.startTime}"`,
+                `"${player.name}"`,
+                `"${player.phone}"`,
+                `"${player.course}"`,
+                player.score,
+                `"${player.prize}"`,
+                `"${player.finalDecision}"`
+            ];
+            csv += row.join(',') + '\n';
+        });
+        
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `quiz-results-${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+        
+        this.showNotification('📤 Đã xuất dữ liệu thành công!', 'success');
+    }
+
+    // Refresh data
+    refreshData() {
+        if (this.playersRef && window.firebase?.database?.get) {
+            window.firebase.database.get(this.playersRef).then((snapshot) => {
+                const data = snapshot.val();
+                this.updatePlayersList(data);
+                this.renderPlayersTable();
+                this.updateStats();
+                this.showNotification('🔄 Đã làm mới dữ liệu!', 'success');
+            }).catch((error) => {
+                console.error('❌ Lỗi làm mới dữ liệu:', error);
+                this.showError('Không thể làm mới dữ liệu');
+            });
+        }
     }
 }
 
@@ -157,4 +325,8 @@ class AdminPanel {
 document.addEventListener('DOMContentLoaded', () => {
     const adminPanel = new AdminPanel();
     window.adminPanel = adminPanel;
+    
+    // Add global functions for buttons
+    window.exportData = () => adminPanel.exportToCSV();
+    window.refreshData = () => adminPanel.refreshData();
 });

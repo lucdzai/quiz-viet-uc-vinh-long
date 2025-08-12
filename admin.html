@@ -2,29 +2,89 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Admin Panel</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Trung Tâm Ngoại Ngữ Việt Úc Vĩnh Long</title>
+    <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="admin.css">
 </head>
 <body>
     <div class="admin-panel">
-        <h2>Quản lý người chơi</h2>
+        <!-- Header -->
+        <div class="admin-header">
+            <h1>🎓 Quản Lý Quiz</h1>
+            <p>Trung Tâm Ngoại Ngữ Việt Úc Vĩnh Long</p>
+        </div>
+
+        <!-- Error Display -->
         <div id="adminError" class="error-message" style="display: none;"></div>
-        <table class="players-table">
-            <thead>
-                <tr>
-                    <th>STT</th>
-                    <th>Thời gian</th>
-                    <th>Họ tên</th>
-                    <th>Số điện thoại</th>
-                    <th>Khóa học đã thử sức</th>
-                    <th>Điểm số</th>
-                    <th>Phần quà</th>
-                    <th>Quyết định cuối cùng</th>
-                </tr>
-            </thead>
-            <tbody id="playersTableBody">
-            </tbody>
-        </table>
+
+        <!-- Statistics Cards -->
+        <div class="admin-stats">
+            <div class="stat-card">
+                <h3>👥 Tổng người tham gia</h3>
+                <div class="stat-value" id="total-participants">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>📝 Hoàn thành quiz</h3>
+                <div class="stat-value" id="completed-quiz">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>🎯 Đạt vòng quay</h3>
+                <div class="stat-value" id="passed-quiz">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>✅ Đã đăng ký</h3>
+                <div class="stat-value" id="registered-users">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>❌ Từ chối</h3>
+                <div class="stat-value" id="declined-users">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>📊 Tỷ lệ đạt</h3>
+                <div class="stat-value" id="pass-rate">0%</div>
+            </div>
+        </div>
+
+        <!-- Admin Actions -->
+        <div class="admin-actions">
+            <button class="btn-primary" onclick="refreshData()">
+                🔄 Làm mới dữ liệu
+            </button>
+            <button class="btn-secondary" onclick="exportData()">
+                📤 Xuất CSV
+            </button>
+            <button class="btn-secondary" onclick="window.open('student.html', '_blank')">
+                👤 Xem trang học sinh
+            </button>
+        </div>
+
+        <!-- Players Table -->
+        <div class="players-table-container">
+            <table class="players-table">
+                <thead>
+                    <tr>
+                        <th class="text-center">STT</th>
+                        <th class="text-center">Thời gian</th>
+                        <th>Họ tên</th>
+                        <th>Số điện thoại</th>
+                        <th>Khóa học đã thử sức</th>
+                        <th class="text-center">Điểm số</th>
+                        <th>Phần quà</th>
+                        <th class="text-center">Quyết định cuối cùng</th>
+                    </tr>
+                </thead>
+                <tbody id="playersTableBody">
+                    <!-- Data will be populated by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div id="loadingIndicator" class="loading-overlay" style="display: none;">
+            <div class="loading-spinner"></div>
+            <p>Đang tải dữ liệu...</p>
+        </div>
     </div>
 
     <!-- Firebase SDK v10.7.1 (Try CDN first, fallback handled by firebase-fallback.js) -->
