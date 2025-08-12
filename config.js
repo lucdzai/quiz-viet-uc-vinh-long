@@ -190,7 +190,7 @@ const CONFIG = {
         website: 'https://ngoainguvietuc.vn',
         facebook: 'https://www.facebook.com/trungtamngoainguVietUc',
         zalo: '0372284333',
-        logoUrl: 'assets/lg.svg'
+        logoUrl: 'assets/lg.png'
     },
     
     // Cấu hình khác

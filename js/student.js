@@ -1005,10 +1005,6 @@ function showFinalScreenWithPrize() {
             <button class="btn-primary" onclick="window.open('https://zalo.me/${CONFIG.CENTER_INFO.zalo}','_blank')">💬 Liên hệ Zalo</button>
             <button class="btn-secondary" onclick="location.reload()">🔄 Làm lại</button>
         </div>
-
-        <div class="thank-you" style="background:#fff3cd;color:#856404">
-            <strong>Lưu ý:</strong> Phần thưởng sẽ được trao trực tiếp khi tham dự lớp học
-        </div>
     `;
 }
 
@@ -1044,10 +1040,6 @@ function showFinalScreenContactLater() {
         <div class="final-actions">
             <button class="btn-primary" onclick="window.open('https://zalo.me/0372284333','_blank')">💬 Liên hệ Zalo</button>
             <button class="btn-secondary" onclick="location.reload()">🔄 Làm lại</button>
-        </div>
-
-        <div class="thank-you" style="background:#fff3cd;color:#856404">
-            <strong>Lưu ý:</strong> Phần thưởng sẽ được trao trực tiếp khi tham dự lớp học
         </div>
     `;
 }
