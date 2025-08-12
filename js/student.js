@@ -10,15 +10,64 @@ document.addEventListener('DOMContentLoaded', async () => {
     const form = document.getElementById('info-form');
     if (form) {
         console.log('✅ Form found, setting up submit handler');
+        const nameInput = document.getElementById('student-name');
+        const phoneInput = document.getElementById('student-phone');
+        const classInput = document.getElementById('student-class');
+
+        const showInlineError = (input, message) => {
+            input.classList.add('input-error');
+            const old = input.parentElement.querySelector('.error-text');
+            if (old) old.remove();
+            const span = document.createElement('div');
+            span.className = 'error-text';
+            span.textContent = message;
+            span.style.color = '#e74c3c';
+            span.style.fontSize = '12px';
+            span.style.marginTop = '6px';
+            input.parentElement.appendChild(span);
+        };
+
+        const clearInlineError = (input) => {
+            input.classList.remove('input-error');
+            const old = input.parentElement.querySelector('.error-text');
+            if (old) old.remove();
+        };
+
+        [nameInput, phoneInput, classInput].forEach(el => {
+            if (!el) return;
+            el.addEventListener('input', () => clearInlineError(el));
+            el.addEventListener('change', () => clearInlineError(el));
+        });
+
         form.onsubmit = async (e) => {
             e.preventDefault();
             console.log('🚀 Form submitted!');
             
             const playerData = {
-                name: document.getElementById('student-name').value,
-                phone: document.getElementById('student-phone').value,
-                course: document.getElementById('student-class').value
+                name: nameInput?.value?.trim(),
+                phone: phoneInput?.value?.trim(),
+                course: classInput?.value
             };
+
+            // Validate
+            let valid = true;
+            if (!playerData.name || playerData.name.length < 2) {
+                valid = false;
+                showInlineError(nameInput, 'Vui lòng nhập họ tên hợp lệ');
+            }
+            if (!playerData.phone || !/^\d{9,12}$/.test(playerData.phone)) {
+                valid = false;
+                showInlineError(phoneInput, 'SĐT/Zalo phải là 9-12 chữ số');
+            }
+            if (!playerData.course) {
+                valid = false;
+                showInlineError(classInput, 'Vui lòng chọn khóa học');
+            }
+
+            if (!valid) {
+                showStudentNotification('⚠️ Vui lòng kiểm tra thông tin bị bôi đỏ', 'warning');
+                return;
+            }
             
             console.log('📝 Player data:', playerData);
 
@@ -644,13 +693,13 @@ function showFinalScreen(decision) {
         <div class="contact-info">
             <h3>📞 Thông tin liên hệ:</h3>
             <p><strong>🏢 Địa chỉ:</strong> Số 36/7, đường Trần Phú, Phường Phước Hậu, Tỉnh Vĩnh Long</p>
-            <p><strong>📱 Hotline:</strong> 02703.912.007</p>
+            <p><strong>📱 Zalo:</strong> <a href="https://zalo.me/0372284333" target="_blank">0372284333</a></p>
             <p><strong>📧 Email:</strong> ngoainguvietuceducation@gmail.com</p>
             <p><strong>🌐 Website:</strong> ngoainguvietuc.vn</p>
         </div>
         
         <div class="final-actions">
-            <button class="btn-primary" onclick="window.open('tel:02703.912.007')">📞 Gọi ngay</button>
+            <button class="btn-primary" onclick="window.open('https://zalo.me/0372284333','_blank')">💬 Liên hệ Zalo</button>
             <button class="btn-secondary" onclick="location.reload()">🔄 Làm lại</button>
         </div>
     `;
@@ -679,42 +728,24 @@ function showWheel() {
                     </div>
                     <!-- Prize segments with labels -->
                     <div class="prize-segment segment-1" style="--start: 0deg; --end: 72deg;">
-                        <div class="prize-label">
-                            <div class="prize-icon-wheel">✏️</div>
-                            <div class="prize-name-wheel">Bút viết</div>
-                        </div>
+                        <div class="prize-label"><div class="prize-icon-wheel">✏️</div><div class="prize-name-wheel">Bút viết</div></div>
                     </div>
                     <div class="prize-segment segment-2" style="--start: 72deg; --end: 144deg;">
-                        <div class="prize-label">
-                            <div class="prize-icon-wheel">🎒</div>
-                            <div class="prize-name-wheel">Balo VAE</div>
-                        </div>
+                        <div class="prize-label"><div class="prize-icon-wheel">🎒</div><div class="prize-name-wheel">Balo VAE</div></div>
                     </div>
                     <div class="prize-segment segment-3" style="--start: 144deg; --end: 216deg;">
-                        <div class="prize-label">
-                            <div class="prize-icon-wheel">📚</div>
-                            <div class="prize-name-wheel">Giáo trình</div>
-                        </div>
+                        <div class="prize-label"><div class="prize-icon-wheel">📚</div><div class="prize-name-wheel">Giáo trình</div></div>
                     </div>
                     <div class="prize-segment segment-4" style="--start: 216deg; --end: 288deg;">
-                        <div class="prize-label">
-                            <div class="prize-icon-wheel">📏</div>
-                            <div class="prize-name-wheel">Thước</div>
-                        </div>
+                        <div class="prize-label"><div class="prize-icon-wheel">📏</div><div class="prize-name-wheel">Thước</div></div>
                     </div>
                     <div class="prize-segment segment-5" style="--start: 288deg; --end: 360deg;">
-                        <div class="prize-label">
-                            <div class="prize-icon-wheel">👕</div>
-                            <div class="prize-name-wheel">Áo VAE</div>
-                        </div>
+                        <div class="prize-label"><div class="prize-icon-wheel">👕</div><div class="prize-name-wheel">Áo VAE</div></div>
                     </div>
                 </div>
-                <!-- Fixed pointer that doesn't move -->
                 <div class="wheel-pointer"></div>
             </div>
-            
             <button class="spin-button" id="spin-btn" onclick="spinWheel()">🎯 Quay Thưởng</button>
-            
             <div id="prize-result" style="display: none;">
                 <h3>🎉 Chúc mừng bạn!</h3>
                 <div class="won-prize">
@@ -722,10 +753,9 @@ function showWheel() {
                     <div class="prize-name-large" id="won-prize-name"></div>
                     <div class="prize-description" id="won-prize-description"></div>
                 </div>
-                
                 <div class="prize-actions">
                     <button class="btn-primary" onclick="registerForPrize()">✅ Đăng ký nhận quà</button>
-                    <button class="btn-secondary" onclick="contactLater()">📞 Tôi sẽ liên hệ lại sau</button>
+                    <button class="btn-secondary" onclick="contactLater()">💬 Liên hệ lại sau</button>
                 </div>
             </div>
         </div>
@@ -935,19 +965,18 @@ function showFinalScreenContactLater() {
                 <span class="prize-icon-large">${currentPrize.icon}</span>
                 ${currentPrize.name}
             </div>
-            <p><strong>Chúng tôi sẽ liên hệ lại với bạn sớm nhất để trao phần thưởng!</strong></p>
         </div>
         
         <div class="contact-info">
             <h3>📞 Thông tin liên hệ:</h3>
             <p><strong>🏢 Địa chỉ:</strong> Số 36/7, đường Trần Phú, Phường Phước Hậu, Tỉnh Vĩnh Long</p>
-            <p><strong>📱 Hotline:</strong> 02703.912.007</p>
+            <p><strong>💬 Zalo:</strong> <a href="https://zalo.me/0372284333" target="_blank">0372284333</a></p>
             <p><strong>📧 Email:</strong> ngoainguvietuceducation@gmail.com</p>
             <p><strong>🌐 Website:</strong> ngoainguvietuc.vn</p>
         </div>
         
         <div class="final-actions">
-            <button class="btn-primary" onclick="window.open('tel:02703.912.007')">📞 Gọi ngay</button>
+            <button class="btn-primary" onclick="window.open('https://zalo.me/0372284333','_blank')">💬 Liên hệ Zalo</button>
             <button class="btn-secondary" onclick="location.reload()">🔄 Làm lại</button>
         </div>
     `;

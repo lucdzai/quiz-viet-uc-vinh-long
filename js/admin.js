@@ -188,11 +188,75 @@ class AdminPanel {
                 <td class="text-center score-cell ${this.getScoreClass(player.rawData?.score)}">${player.score}</td>
                 <td class="prize-cell">${player.prize}</td>
                 <td class="text-center decision-cell ${this.getDecisionClass(player.rawData?.finalDecision)}">${player.finalDecision}</td>
+                <td class="text-center">
+                    <button class="btn-secondary" onclick="window.adminPanel.deletePlayer('${player.id}')">🗑️ Xóa</button>
+                </td>
             `;
             tbody.appendChild(row);
         });
 
         this.updateTotalPlayers(sortedPlayers.length);
+    }
+
+    async deletePlayer(playerId) {
+        try {
+            if (!playerId || !this.database || !window.firebase?.database?.ref) return;
+            const ref = window.firebase.database.ref(this.database, `players/${playerId}`);
+            await window.firebase.database.set(ref, null);
+            this.showNotification('🗑️ Đã xóa người chơi', 'success');
+        } catch (error) {
+            console.error('❌ Lỗi xóa người chơi:', error);
+            this.showError('Không thể xóa người chơi');
+        }
+    }
+
+    openDeleteRangeModal() {
+        const modal = document.getElementById('deleteRangeModal');
+        if (modal) modal.classList.add('show');
+    }
+
+    closeDeleteRangeModal() {
+        const modal = document.getElementById('deleteRangeModal');
+        if (modal) modal.classList.remove('show');
+    }
+
+    async confirmDeleteRange() {
+        try {
+            const startEl = document.getElementById('deleteStart');
+            const endEl = document.getElementById('deleteEnd');
+            const start = startEl?.value ? new Date(startEl.value).getTime() : null;
+            const end = endEl?.value ? new Date(endEl.value).getTime() : null;
+
+            if (!start && !end) {
+                this.showError('Vui lòng chọn ít nhất một mốc thời gian');
+                return;
+            }
+
+            if (!this.database || !window.firebase?.database?.ref || !window.firebase?.database?.get) return;
+            const playersRef = window.firebase.database.ref(this.database, 'players');
+            const snapshot = await window.firebase.database.get(playersRef);
+            if (!snapshot.exists()) {
+                this.closeDeleteRangeModal();
+                return;
+            }
+            const players = snapshot.val();
+            const deletions = [];
+
+            for (const [id, player] of Object.entries(players)) {
+                const ts = new Date(player.startTime || player.lastUpdated || 0).getTime();
+                if ((start === null || ts >= start) && (end === null || ts <= end)) {
+                    const ref = window.firebase.database.ref(this.database, `players/${id}`);
+                    deletions.push(window.firebase.database.set(ref, null));
+                }
+            }
+
+            await Promise.all(deletions);
+            this.closeDeleteRangeModal();
+            this.showNotification(`🗑️ Đã xóa ${deletions.length} người trong khoảng thời gian đã chọn`, 'success');
+        } catch (error) {
+            console.error('❌ Lỗi xóa theo thời gian:', error);
+            this.showError('Không thể xóa theo thời gian đã chọn');
+        }
     }
 
     getScoreClass(score) {
@@ -273,6 +337,13 @@ class AdminPanel {
         }, 5000);
     }
 
+    // Expose range deletion helpers to global for modal buttons
+    bindGlobalHelpers() {
+        window.openDeleteRangeModal = () => this.openDeleteRangeModal();
+        window.closeDeleteRangeModal = () => this.closeDeleteRangeModal();
+        window.confirmDeleteRange = () => this.confirmDeleteRange();
+    }
+
     // Export data to CSV
     exportToCSV() {
         const players = Array.from(this.playersList.values());
@@ -333,4 +404,5 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add global functions for buttons
     window.exportData = () => adminPanel.exportToCSV();
     window.refreshData = () => adminPanel.refreshData();
+    adminPanel.bindGlobalHelpers();
 });

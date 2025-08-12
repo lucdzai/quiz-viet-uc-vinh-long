@@ -54,6 +54,9 @@
             <button class="btn-secondary" onclick="exportData()">
                 📤 Xuất CSV
             </button>
+            <button class="btn-secondary" onclick="openDeleteRangeModal()">
+                🗑️ Xóa theo thời gian
+            </button>
             <button class="btn-secondary" onclick="window.open('student.html', '_blank')">
                 👤 Xem trang học sinh
             </button>
@@ -72,6 +75,7 @@
                         <th class="text-center">Điểm số</th>
                         <th>Phần quà</th>
                         <th class="text-center">Quyết định cuối cùng</th>
+                        <th class="text-center">Hành động</th>
                     </tr>
                 </thead>
                 <tbody id="playersTableBody">
@@ -84,6 +88,32 @@
         <div id="loadingIndicator" class="loading-overlay" style="display: none;">
             <div class="loading-spinner"></div>
             <p>Đang tải dữ liệu...</p>
+        </div>
+
+        <!-- Delete by Range Modal -->
+        <div id="deleteRangeModal" class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div class="modal-icon">🗑️</div>
+                    <h3>Xóa dữ liệu theo thời gian</h3>
+                </div>
+                <div class="modal-body">
+                    <p>Chọn khoảng thời gian để xóa người chơi (theo thời điểm tạo):</p>
+                    <div class="form-group">
+                        <label for="deleteStart">Từ lúc</label>
+                        <input type="datetime-local" id="deleteStart" />
+                    </div>
+                    <div class="form-group">
+                        <label for="deleteEnd">Đến lúc</label>
+                        <input type="datetime-local" id="deleteEnd" />
+                    </div>
+                    <p style="font-size: 12px; color: #e74c3c">Lưu ý: Hành động này không thể hoàn tác.</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="modal-btn modal-btn-secondary" onclick="closeDeleteRangeModal()">Hủy</button>
+                    <button class="modal-btn modal-btn-primary" onclick="confirmDeleteRange()">Xóa</button>
+                </div>
+            </div>
         </div>
     </div>
 
