@@ -14,6 +14,21 @@ const config = {
     },
 
     connectionStatus: false,
+
+    // Safe connectivity check used by flows
+    isConnected() {
+        try {
+            if (typeof FirebaseConfig !== 'undefined' && typeof FirebaseConfig.getConnectionStatus === 'function') {
+                const s = FirebaseConfig.getConnectionStatus();
+                // Consider connected if app and database are initialized
+                if (s && (s.database || s.app)) return true;
+            }
+            return this.connectionStatus === true;
+        } catch (e) {
+            // Be permissive to avoid blocking UX if status is temporarily unknown
+            return true;
+        }
+    },
     
     async initializePlayer(playerData) {
         if (!this.isConnected()) {
