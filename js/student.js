@@ -818,31 +818,21 @@ function spinWheel() {
     const randomDegrees = Math.random() * 360; // 0..360
     const finalRotation = baseRotation + randomDegrees;
     
-    // Calculate which segment the pointer lands on
-    // Pointer is at top (0°), so we need to find which segment is at top after rotation
-    const normalizedRotation = randomDegrees % 360;
-    
-    // Map rotation to segment (each segment is 72°)
-    // 0° = top (Bút viết), 72° = right (Balo VAE), 144° = bottom (Giáo trình), etc.
-    let segmentIndex;
-    if (normalizedRotation >= 0 && normalizedRotation < 36) {
-        segmentIndex = 0; // Bút viết (top)
-    } else if (normalizedRotation >= 36 && normalizedRotation < 108) {
-        segmentIndex = 1; // Balo VAE (right)
-    } else if (normalizedRotation >= 108 && normalizedRotation < 180) {
-        segmentIndex = 2; // Giáo trình (bottom)
-    } else if (normalizedRotation >= 180 && normalizedRotation < 252) {
-        segmentIndex = 3; // Thước (left)
-    } else {
-        segmentIndex = 4; // Áo VAE (top-left)
-    }
-    
-    // Get the prize based on segment index
-    currentPrize = prizes[segmentIndex];
-    
-    console.log('🎯 Random rotation:', randomDegrees.toFixed(2), 'degrees');
-    console.log('🎯 Normalized rotation:', normalizedRotation.toFixed(2), 'degrees');
-    console.log('🎯 Landing on segment:', segmentIndex, '→', currentPrize.name);
+    // Determine which wedge ends up under the pointer (pointer is at TOP = 270° in CSS conic coordinates)
+    const angleAtPointerTop = 270; // degrees
+    const normalizedRotation = randomDegrees % 360; // wheel rotation clockwise
+    const landingAngle = (angleAtPointerTop - normalizedRotation + 360) % 360; // convert to wheel's 0° reference (right)
+    const segmentAngle = 360 / prizes.length; // 72° per segment
+    const wedgeIndex = Math.floor(landingAngle / segmentAngle); // 0..4 starting from RIGHT going clockwise
+
+    // Map wedge index (starting at RIGHT) to our prize order [Top, Right, Bottom, Left, Top-Left]
+    const wedgeToPrizeIndex = [1, 2, 3, 4, 0];
+    const prizeIndex = wedgeToPrizeIndex[wedgeIndex];
+    currentPrize = prizes[prizeIndex];
+
+    console.log('🎯 randomDegrees =', randomDegrees.toFixed(2), 'normalized =', normalizedRotation.toFixed(2));
+    console.log('🎯 landingAngle =', landingAngle.toFixed(2), 'wedgeIndex =', wedgeIndex, 'prizeIndex =', prizeIndex);
+    console.log('🎁 Selected prize:', currentPrize);
     
     // Animate
     wheel.classList.add('spinning');
