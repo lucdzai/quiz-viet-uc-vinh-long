@@ -1724,14 +1724,11 @@ input:invalid:not(:focus):not(:placeholder-shown) {
     margin: 30px auto;
     position: relative;
     background: conic-gradient(
-        #ff6b6b 0deg 45deg,
-        #4ecdc4 45deg 90deg,
-        #45b7d1 90deg 135deg,
-        #96ceb4 135deg 180deg,
-        #feca57 180deg 225deg,
-        #ff9ff3 225deg 270deg,
-        #54a0ff 270deg 315deg,
-        #5f27cd 315deg 360deg
+        #ff6b6b 0deg 72deg,
+        #4ecdc4 72deg 144deg,
+        #45b7d1 144deg 216deg,
+        #96ceb4 216deg 288deg,
+        #feca57 288deg 360deg
     );
     box-shadow: 0 10px 30px rgba(0,0,0,0.3);
     transition: transform 3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
@@ -1748,6 +1745,110 @@ input:invalid:not(:focus):not(:placeholder-shown) {
     border-right: 15px solid transparent;
     border-top: 30px solid #e74c3c;
     z-index: 10;
+}
+
+.wheel-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 60px;
+    height: 60px;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    z-index: 5;
+}
+
+.prize-list {
+    margin: 30px 0;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 15px;
+    border: 2px solid #e9ecef;
+}
+
+.prize-list h3 {
+    color: #2c3e50;
+    margin-bottom: 20px;
+}
+
+.prize-items {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.prize-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 15px;
+    background: white;
+    border-radius: 10px;
+    border: 2px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+.prize-item:hover {
+    border-color: #667eea;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+}
+
+.prize-icon {
+    font-size: 32px;
+    margin-bottom: 10px;
+}
+
+.prize-name {
+    font-size: 14px;
+    font-weight: bold;
+    color: #2c3e50;
+    text-align: center;
+}
+
+.won-prize {
+    text-align: center;
+    margin: 30px 0;
+    padding: 25px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 15px;
+    color: white;
+}
+
+.prize-icon-large {
+    font-size: 48px;
+    display: block;
+    margin-bottom: 15px;
+}
+
+.prize-name-large {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.prize-description {
+    font-size: 16px;
+    opacity: 0.9;
+}
+
+.prize-actions {
+    margin: 30px 0;
+}
+
+.prize-actions button {
+    margin: 0 15px;
+    padding: 15px 30px;
+    font-size: 16px;
+    border-radius: 25px;
+    transition: all 0.3s ease;
 }
 
 .spin-button {

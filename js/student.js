@@ -656,32 +656,69 @@ function showWheel() {
         <div class="wheel-container">
             <div class="wheel" id="prize-wheel">
                 <div class="wheel-pointer"></div>
+                <div class="wheel-center">
+                    <span>🎯</span>
+                </div>
+            </div>
+            
+            <div class="prize-list">
+                <h3>🎁 Danh sách phần thưởng:</h3>
+                <div class="prize-items">
+                    ${prizes.map((prize, index) => `
+                        <div class="prize-item">
+                            <span class="prize-icon">${prize.icon}</span>
+                            <span class="prize-name">${prize.name}</span>
+                        </div>
+                    `).join('')}
+                </div>
             </div>
             
             <button class="spin-button" id="spin-btn" onclick="spinWheel()">🎯 Quay Thưởng</button>
             
             <div id="prize-result" style="display: none;">
                 <h3>🎉 Chúc mừng bạn!</h3>
-                <p>Bạn đã trúng: <span id="prize-name"></span></p>
+                <div class="won-prize">
+                    <span class="prize-icon-large" id="won-prize-icon"></span>
+                    <div class="prize-name-large" id="won-prize-name"></div>
+                    <div class="prize-description" id="won-prize-description"></div>
+                </div>
+                
+                <div class="prize-actions">
+                    <button class="btn-primary" onclick="registerForPrize()">✅ Đăng ký nhận quà</button>
+                    <button class="btn-secondary" onclick="contactLater()">📞 Tôi sẽ liên hệ lại sau</button>
+                </div>
             </div>
-        </div>
-        
-        <div class="final-actions">
-            <button class="btn-primary" onclick="showFinalScreenWithPrize()">🎓 Đăng ký khóa học</button>
         </div>
     `;
 }
 
 // Prize wheel prizes
 const prizes = [
-    "🎁 Học bổng 50% khóa học",
-    "🎁 Học bổng 30% khóa học", 
-    "🎁 Học bổng 20% khóa học",
-    "🎁 Tài liệu học tập miễn phí",
-    "🎁 Khóa học online miễn phí",
-    "🎁 Sách giáo khoa miễn phí",
-    "🎁 Bộ dụng cụ học tập",
-    "🎁 Voucher giảm giá 100k"
+    {
+        name: "Combo bút viết",
+        icon: "✏️",
+        description: "Bộ bút viết chất lượng cao"
+    },
+    {
+        name: "Balo VAE",
+        icon: "🎒",
+        description: "Balo thương hiệu VAE"
+    },
+    {
+        name: "Giáo trình",
+        icon: "📚",
+        description: "Bộ giáo trình học tập"
+    },
+    {
+        name: "Thước",
+        icon: "📏",
+        description: "Thước kẻ chính xác"
+    },
+    {
+        name: "Áo VAE",
+        icon: "👕",
+        description: "Áo thun thương hiệu VAE"
+    }
 ];
 
 let currentPrize = null;
@@ -713,14 +750,21 @@ function spinWheel() {
     // Show result after animation
     setTimeout(() => {
         wheel.classList.remove('spinning');
-        document.getElementById('prize-name').textContent = currentPrize;
+        
+        // Update prize display
+        document.getElementById('won-prize-icon').textContent = currentPrize.icon;
+        document.getElementById('won-prize-name').textContent = currentPrize.name;
+        document.getElementById('won-prize-description').textContent = currentPrize.description;
+        
         prizeResult.style.display = 'block';
         spinBtn.style.display = 'none';
         
         // Save prize to Firebase
         if (typeof config !== 'undefined' && config.updateWheelResult) {
             config.updateWheelResult({
-                prize: currentPrize,
+                prize: currentPrize.name,
+                prizeIcon: currentPrize.icon,
+                prizeDescription: currentPrize.description,
                 timestamp: new Date().toISOString()
             }).catch(error => {
                 console.error('❌ Lỗi lưu phần thưởng:', error);
@@ -729,10 +773,37 @@ function spinWheel() {
     }, 3000);
 }
 
+function registerForPrize() {
+    if (typeof config !== 'undefined' && config.updateFinalChoice) {
+        config.updateFinalChoice({
+            decision: true,
+            prize: currentPrize.name,
+            prizeIcon: currentPrize.icon,
+            timestamp: new Date().toISOString()
+        }).catch(error => {
+            console.error('❌ Lỗi lưu quyết định:', error);
+        });
+    }
+    showFinalScreenWithPrize();
+}
+
+function contactLater() {
+    if (typeof config !== 'undefined' && config.updateFinalChoice) {
+        config.updateFinalChoice({
+            decision: false,
+            prize: currentPrize.name,
+            prizeIcon: currentPrize.icon,
+            timestamp: new Date().toISOString()
+        }).catch(error => {
+            console.error('❌ Lỗi lưu quyết định:', error);
+        });
+    }
+    showFinalScreenContactLater();
+}
+
 function showFinalScreenWithPrize() {
     const quizContainer = document.getElementById('quiz-container');
-    const decisionText = 'ĐĂNG KÝ';
-    const decisionColor = '#27ae60';
+    const playerName = document.getElementById('student-name')?.value || 'Bạn';
     
     quizContainer.innerHTML = `
         <div class="logo">
@@ -741,14 +812,17 @@ function showFinalScreenWithPrize() {
             <h2>🎓 Trung Tâm Ngoại Ngữ Việt Úc Vĩnh Long</h2>
         </div>
         
-        <div class="final-message" style="color: ${decisionColor};">
-            <h3>🎉 Cảm ơn bạn đã tham gia!</h3>
-            <p>Bạn đã chọn: <strong>${decisionText}</strong></p>
+        <div class="final-message" style="color: #27ae60;">
+            <h3>🎉 Chúc mừng ${playerName}!</h3>
+            <p>Bạn đã chọn: <strong>ĐĂNG KÝ NHẬN QUÀ</strong></p>
         </div>
         
         <div class="prize-info">
             <h3>🎁 Phần Thưởng Của Bạn</h3>
-            <div class="prize-name">${currentPrize || '🎁 Học bổng đặc biệt'}</div>
+            <div class="prize-name">
+                <span class="prize-icon-large">${currentPrize.icon}</span>
+                ${currentPrize.name}
+            </div>
             <p><strong>Trung tâm đã ghi nhận thông tin và sẽ trao quà trực tiếp khi bạn tham dự lớp học!</strong></p>
         </div>
         
@@ -765,15 +839,43 @@ function showFinalScreenWithPrize() {
             <button class="btn-secondary" onclick="location.reload()">🔄 Làm lại</button>
         </div>
     `;
+}
+
+function showFinalScreenContactLater() {
+    const quizContainer = document.getElementById('quiz-container');
     
-    // Save final decision to Firebase
-    if (typeof config !== 'undefined' && config.updateFinalChoice) {
-        config.updateFinalChoice({
-            decision: true,
-            prize: currentPrize,
-            timestamp: new Date().toISOString()
-        }).catch(error => {
-            console.error('❌ Lỗi lưu quyết định cuối:', error);
-        });
-    }
+    quizContainer.innerHTML = `
+        <div class="logo">
+            <img src="assets/logo.svg" alt="Logo Trung Tâm" class="center-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+            <div class="logo-fallback" style="display: none;">🎓</div>
+            <h2>🎓 Trung Tâm Ngoại Ngữ Việt Úc Vĩnh Long</h2>
+        </div>
+        
+        <div class="final-message" style="color: #f39c12;">
+            <h3>🎉 Cảm ơn bạn đã tham gia thử sức!</h3>
+            <p>Bạn đã chọn: <strong>LIÊN HỆ LẠI SAU</strong></p>
+        </div>
+        
+        <div class="prize-info">
+            <h3>🎁 Phần Thưởng Đã Trúng</h3>
+            <div class="prize-name">
+                <span class="prize-icon-large">${currentPrize.icon}</span>
+                ${currentPrize.name}
+            </div>
+            <p><strong>Chúng tôi sẽ liên hệ lại với bạn sớm nhất để trao phần thưởng!</strong></p>
+        </div>
+        
+        <div class="contact-info">
+            <h3>📞 Thông tin liên hệ:</h3>
+            <p><strong>🏢 Địa chỉ:</strong> Số 36/7, đường Trần Phú, Phường Phước Hậu, Tỉnh Vĩnh Long</p>
+            <p><strong>📱 Hotline:</strong> 02703.912.007</p>
+            <p><strong>📧 Email:</strong> ngoainguvietuceducation@gmail.com</p>
+            <p><strong>🌐 Website:</strong> ngoainguvietuc.vn</p>
+        </div>
+        
+        <div class="final-actions">
+            <button class="btn-primary" onclick="window.open('tel:02703.912.007')">📞 Gọi ngay</button>
+            <button class="btn-secondary" onclick="location.reload()">🔄 Làm lại</button>
+        </div>
+    `;
 }
