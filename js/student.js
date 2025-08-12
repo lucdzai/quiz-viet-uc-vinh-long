@@ -818,20 +818,31 @@ function spinWheel() {
     const randomDegrees = Math.random() * 360; // 0..360
     const finalRotation = baseRotation + randomDegrees;
     
-    // Determine which wedge the pointer lands on
-    const segmentAngle = 360 / prizes.length; // 72°
-    // Effective angle under the pointer after rotation (in wheel's original coordinates)
-    const landingAngle = (360 - (randomDegrees % 360)) % 360;
-    const segmentIndex = Math.floor(landingAngle / segmentAngle); // 0..4, starting from 0° (right) clockwise
+    // Calculate which segment the pointer lands on
+    // Pointer is at top (0°), so we need to find which segment is at top after rotation
+    const normalizedRotation = randomDegrees % 360;
     
-    // Map segment (by angle from RIGHT) to prize index (by our label order: top, right, bottom, left, top-left)
-    const prizeIndexBySegment = [1, 2, 3, 0, 4];
-    const prizeIndex = prizeIndexBySegment[segmentIndex];
-    currentPrize = prizes[prizeIndex];
+    // Map rotation to segment (each segment is 72°)
+    // 0° = top (Bút viết), 72° = right (Balo VAE), 144° = bottom (Giáo trình), etc.
+    let segmentIndex;
+    if (normalizedRotation >= 0 && normalizedRotation < 36) {
+        segmentIndex = 0; // Bút viết (top)
+    } else if (normalizedRotation >= 36 && normalizedRotation < 108) {
+        segmentIndex = 1; // Balo VAE (right)
+    } else if (normalizedRotation >= 108 && normalizedRotation < 180) {
+        segmentIndex = 2; // Giáo trình (bottom)
+    } else if (normalizedRotation >= 180 && normalizedRotation < 252) {
+        segmentIndex = 3; // Thước (left)
+    } else {
+        segmentIndex = 4; // Áo VAE (top-left)
+    }
     
-    console.log('🎯 randomDegrees =', randomDegrees.toFixed(2), 'landingAngle =', landingAngle.toFixed(2));
-    console.log('🎯 segmentIndex =', segmentIndex, '→ prizeIndex =', prizeIndex);
-    console.log('🎁 Selected prize:', currentPrize);
+    // Get the prize based on segment index
+    currentPrize = prizes[segmentIndex];
+    
+    console.log('🎯 Random rotation:', randomDegrees.toFixed(2), 'degrees');
+    console.log('🎯 Normalized rotation:', normalizedRotation.toFixed(2), 'degrees');
+    console.log('🎯 Landing on segment:', segmentIndex, '→', currentPrize.name);
     
     // Animate
     wheel.classList.add('spinning');
