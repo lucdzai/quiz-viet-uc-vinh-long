@@ -71,7 +71,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             console.log('📝 Player data:', playerData);
 
-            if (typeof config !== 'undefined' && await config.initializePlayer(playerData)) {
+            try {
+                if (!(typeof config !== 'undefined')) throw new Error('Cấu hình chưa sẵn sàng');
+                const ok = await config.initializePlayer(playerData);
+                if (!ok) throw new Error('Khởi tạo người chơi thất bại');
                 console.log('✅ Player initialized, showing quiz...');
                 
                 // Store current user data globally
@@ -101,14 +104,35 @@ document.addEventListener('DOMContentLoaded', async () => {
                         showQuiz(playerData.course);
                     }
                 }
-            } else {
+            } catch (err) {
                 console.log('❌ Failed to initialize player');
+                const message = (err && err.message && err.message.includes('Số điện thoại'))
+                    ? 'Số điện thoại đã được sử dụng. Vui lòng dùng số khác.'
+                    : (err?.message || 'Không thể khởi tạo, vui lòng thử lại');
+                if (message.includes('Số điện thoại')) {
+                    showInlineError(phoneInput, 'Số điện thoại đã được sử dụng');
+                }
+                showStudentNotification(message, 'error');
             }
         };
     } else {
         console.log('❌ Form not found!');
     }
 });
+
+// Lightweight on-screen notification for student UI
+function showStudentNotification(message, type = 'info') {
+    const note = document.createElement('div');
+    note.className = 'student-notification ' + (type || 'info');
+    note.textContent = message;
+    note.style.top = '20px';
+    note.style.right = '20px';
+    document.body.appendChild(note);
+    setTimeout(() => {
+        note.style.animation = 'slideOutRight 0.25s ease forwards';
+        setTimeout(() => note.remove(), 260);
+    }, 2800);
+}
 
 // Function to show quiz content
 function showQuiz(courseType) {
@@ -584,8 +608,7 @@ function showResult(score, answers, totalQuestions) {
         resultHTML += `
             <div class="result-message success">
                 🎉 <strong>Chúc mừng bạn!</strong><br>
-                Bạn đã đạt yêu cầu để tham gia vòng quay may mắn!<br>
-                <small>Có cơ hội nhận được nhiều phần quà hấp dẫn!</small>
+                Bạn đã đạt yêu cầu để tham gia vòng quay may mắn!
             </div>
             <button class="btn-primary" onclick="showWheel()">🎯 Vào vòng quay may mắn</button>
         `;
@@ -593,11 +616,9 @@ function showResult(score, answers, totalQuestions) {
         resultHTML += `
             <div class="result-message warning">
                 😔 <strong>Rất tiếc!</strong><br>
-                Bạn cần trả lời đúng tối thiểu 3/${totalQuestions} câu để vào vòng quay.<br>
-                <small>Nhưng đừng lo! Chúng tôi vẫn có những ưu đãi dành cho bạn.</small>
+                Bạn cần trả lời đúng tối thiểu 3/${totalQuestions} câu để vào vòng quay.
             </div>
             <button class="btn-secondary" onclick="restartQuiz()">🔄 Làm lại Quiz</button>
-            <button class="btn-primary" onclick="showCourseRegistration()">🎓 Tìm hiểu khóa học</button>
         `;
     }
     
@@ -964,15 +985,10 @@ function showFinalScreenWithPrize() {
         <div class="final-message" style="color: #27ae60;">
             <h3>🎉 Chúc mừng ${playerName}!</h3>
             <p>Bạn đã chọn: <strong>ĐĂNG KÝ NHẬN QUÀ</strong></p>
-        </div>
-        
-        <div class="prize-info">
-            <h3>🎁 Phần Thưởng Của Bạn</h3>
-            <div class="prize-name">
+            <div class="prize-name" style="margin-top:12px;">
                 <span class="prize-icon-large">${currentPrize.icon}</span>
                 ${currentPrize.name}
             </div>
-            <p><strong>Trung tâm đã ghi nhận thông tin và sẽ trao quà trực tiếp khi bạn tham dự lớp học!</strong></p>
         </div>
         
         <div class="contact-info">
@@ -1003,13 +1019,9 @@ function showFinalScreenContactLater() {
         </div>
         
         <div class="final-message" style="color: #f39c12;">
-            <h3>🎉 Cảm ơn bạn đã tham gia thử sức!</h3>
+            <h3>🎉 Cảm ơn ${currentUser?.name || 'bạn'} đã tham gia thử sức!</h3>
             <p>Bạn đã chọn: <strong>LIÊN HỆ LẠI SAU</strong></p>
-        </div>
-        
-        <div class="prize-info">
-            <h3>🎁 Phần Thưởng Đã Trúng</h3>
-            <div class="prize-name">
+            <div class="prize-name" style="margin-top:12px;">
                 <span class="prize-icon-large">${currentPrize.icon}</span>
                 ${currentPrize.name}
             </div>

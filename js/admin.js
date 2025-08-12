@@ -189,7 +189,7 @@ class AdminPanel {
                 <td class="prize-cell">${player.prize}</td>
                 <td class="text-center decision-cell ${this.getDecisionClass(player.rawData?.finalDecision)}">${player.finalDecision}</td>
                 <td class="text-center">
-                    <button class="btn-secondary" onclick="window.adminPanel.deletePlayer('${player.id}')">🗑️ Xóa</button>
+                    <button class="btn-secondary" onclick="window.adminPanel.confirmDeletePlayer('${player.id}','${player.name}','${player.phone}')">🗑️ Xóa</button>
                 </td>
             `;
             tbody.appendChild(row);
@@ -208,6 +208,32 @@ class AdminPanel {
             console.error('❌ Lỗi xóa người chơi:', error);
             this.showError('Không thể xóa người chơi');
         }
+    }
+
+    confirmDeletePlayer(playerId, name, phone) {
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay show';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div class="modal-icon">❓</div>
+                    <h3>Xác nhận xóa</h3>
+                </div>
+                <div class="modal-body">
+                    <p>Bạn có chắc muốn xóa người chơi này?</p>
+                    <p><strong>${name || 'Không tên'}</strong> - ${phone || ''}</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="modal-btn modal-btn-secondary" id="cancelDel">Hủy</button>
+                    <button class="modal-btn modal-btn-primary" id="okDel">Xóa</button>
+                </div>
+            </div>`;
+        document.body.appendChild(modal);
+        modal.querySelector('#cancelDel').onclick = () => modal.remove();
+        modal.querySelector('#okDel').onclick = async () => {
+            await this.deletePlayer(playerId);
+            modal.remove();
+        };
     }
 
     openDeleteRangeModal() {
