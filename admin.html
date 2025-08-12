@@ -90,7 +90,7 @@
     <!-- Firebase SDK v10.7.1 (Try CDN first, fallback handled by firebase-fallback.js) -->
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getDatabase, ref, set, get, push, onValue, serverTimestamp, increment } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+        import { getDatabase, ref, set, get, push, onValue, serverTimestamp, increment, update } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
         
         // Make Firebase modules available globally for compatibility
         window.firebase = {
@@ -103,7 +103,8 @@
                 push,
                 onValue,
                 serverTimestamp,
-                increment
+                increment,
+                update
             }
         };
     </script>

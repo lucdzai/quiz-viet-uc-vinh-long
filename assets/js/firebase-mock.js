@@ -198,9 +198,14 @@ function mockRef(database, path) {
     return new MockDatabaseRef(database, path);
 }
 
-function mockSet(ref, value) {
+    function mockSet(ref, value) {
     console.log(`🔥 Mock set called on ${ref.path}:`, value);
-    ref.mockData = value;
+        // Persist into the in-memory database
+        if (ref && ref.database && typeof ref.database.setData === 'function') {
+            ref.database.setData(ref.path, value);
+        } else {
+            ref.mockData = value;
+        }
     return Promise.resolve();
 }
 
@@ -228,16 +233,16 @@ function mockGet(ref) {
     });
 }
 
-function mockPush(ref) {
+    function mockPush(ref) {
     const key = 'mock_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     console.log(`🔥 Mock push to ${ref.path}, generated key:`, key);
     return {
         key: key,
-        ref: new MockDatabaseRef(ref.database, `${ref.path}/${key}`)
+            ref: new MockDatabaseRef(ref.database, `${ref.path}/${key}`)
     };
 }
 
-function mockOnValue(ref, callback, errorCallback) {
+    function mockOnValue(ref, callback, errorCallback) {
     console.log(`🔥 Mock onValue listener on ${ref.path}`);
     
     // Simulate connection status for .info/connected
@@ -248,11 +253,26 @@ function mockOnValue(ref, callback, errorCallback) {
     } else {
         // Simulate data for other paths
         setTimeout(() => {
+            const dbData = ref && ref.database ? ref.database.getData(ref.path) : undefined;
+            const val = dbData !== undefined ? dbData : (ref.mockData || {});
             callback({ 
-                val: () => ref.mockData || {},
-                exists: () => Object.keys(ref.mockData || {}).length > 0
+                val: () => val,
+                exists: () => val !== null && (typeof val !== 'object' || Object.keys(val).length > 0)
             });
         }, 100);
+    }
+
+    function mockUpdate(ref, updates) {
+        console.log(`🔥 Mock update called on ${ref.path}:`, updates);
+        if (ref && ref.database) {
+            const current = ref.database.getData(ref.path) || {};
+            const merged = { ...current, ...updates };
+            ref.database.setData(ref.path, merged);
+            return Promise.resolve();
+        }
+        // Fallback if no database reference
+        ref.mockData = { ...(ref.mockData || {}), ...updates };
+        return Promise.resolve();
     }
     
     // Return unsubscribe function
@@ -283,7 +303,8 @@ window.firebase = {
         push: mockPush,
         onValue: mockOnValue,
         serverTimestamp: mockServerTimestamp,
-        increment: mockIncrement
+        increment: mockIncrement,
+        update: mockUpdate
     },
     
     // Legacy v8 support for backward compatibility
