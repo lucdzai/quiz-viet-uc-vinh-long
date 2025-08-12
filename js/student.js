@@ -813,39 +813,27 @@ function spinWheel() {
     spinBtn.disabled = true;
     spinBtn.textContent = '🔄 Đang quay...';
     
-    // Calculate random rotation first
+    // Random total rotation
     const baseRotation = 1440; // 4 full rotations
-    const randomDegrees = Math.random() * 360; // Random degrees from 0-360
+    const randomDegrees = Math.random() * 360; // 0..360
     const finalRotation = baseRotation + randomDegrees;
     
-    console.log('🎯 Random rotation:', randomDegrees, 'degrees');
+    // Determine which wedge the pointer lands on
+    const segmentAngle = 360 / prizes.length; // 72°
+    // Effective angle under the pointer after rotation (in wheel's original coordinates)
+    const landingAngle = (360 - (randomDegrees % 360)) % 360;
+    const segmentIndex = Math.floor(landingAngle / segmentAngle); // 0..4, starting from 0° (right) clockwise
     
-    // Calculate which segment the pointer will land on
-    // Since pointer is at top (0 degrees), we need to calculate based on final position
-    const normalizedRotation = randomDegrees % 360;
-    let segmentIndex;
+    // Map segment (by angle from RIGHT) to prize index (by our label order: top, right, bottom, left, top-left)
+    const prizeIndexBySegment = [1, 2, 3, 0, 4];
+    const prizeIndex = prizeIndexBySegment[segmentIndex];
+    currentPrize = prizes[prizeIndex];
     
-    // Calculate segment based on final rotation position
-    // Each segment is 72 degrees (360/5)
-    if (normalizedRotation >= 0 && normalizedRotation < 72) {
-        segmentIndex = 0; // Bút viết (top)
-    } else if (normalizedRotation >= 72 && normalizedRotation < 144) {
-        segmentIndex = 1; // Balo VAE (right)
-    } else if (normalizedRotation >= 144 && normalizedRotation < 216) {
-        segmentIndex = 2; // Giáo trình (bottom)
-    } else if (normalizedRotation >= 216 && normalizedRotation < 288) {
-        segmentIndex = 3; // Thước (left)
-    } else {
-        segmentIndex = 4; // Áo VAE (top-left)
-    }
-    
-    // Get the prize based on segment index
-    currentPrize = prizes[segmentIndex];
-    
-    console.log('🎁 Wheel will land on segment:', segmentIndex);
+    console.log('🎯 randomDegrees =', randomDegrees.toFixed(2), 'landingAngle =', landingAngle.toFixed(2));
+    console.log('🎯 segmentIndex =', segmentIndex, '→ prizeIndex =', prizeIndex);
     console.log('🎁 Selected prize:', currentPrize);
     
-    // Add spinning class and rotate
+    // Animate
     wheel.classList.add('spinning');
     wheel.style.transform = `rotate(${finalRotation}deg)`;
     
