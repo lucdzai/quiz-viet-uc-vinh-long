@@ -11,7 +11,13 @@ body {
     justify-content: center;
     align-items: center;
     padding: 20px;
-    background: #f5f7fb url('assets/background.jpg') center/cover no-repeat fixed;
+    background-color: #f5f7fb;
+    background-image: url('assets/background.jpg');
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-position: center center;
+    /* Fit full image height to viewport to keep original ratio, show 2 sides */
+    background-size: auto 100%;
 }
 
 .container {
@@ -63,7 +69,8 @@ body {
     height: auto;
     margin: 0 auto 15px;
     display: block;
-    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.1));
+    /* Avoid any filter that might affect colors */
+    filter: none;
 }
 
 .logo-fallback {
