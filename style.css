@@ -1741,10 +1741,11 @@ input:invalid:not(:focus):not(:placeholder-shown) {
     transform: translateX(-50%);
     width: 0;
     height: 0;
-    border-left: 15px solid transparent;
-    border-right: 15px solid transparent;
-    border-top: 30px solid #e74c3c;
-    z-index: 10;
+    border-left: 20px solid transparent;
+    border-right: 20px solid transparent;
+    border-top: 40px solid #e74c3c;
+    z-index: 20;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
 }
 
 .wheel-center {
@@ -1752,16 +1753,17 @@ input:invalid:not(:focus):not(:placeholder-shown) {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 60px;
-    height: 60px;
-    background: white;
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #fff, #f8f9fa);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    z-index: 5;
+    font-size: 32px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    z-index: 10;
+    border: 4px solid #e9ecef;
 }
 
 .prize-list {
@@ -2003,7 +2005,7 @@ input:invalid:not(:focus):not(:placeholder-shown) {
 }
 
 .wheel.spinning {
-    animation: spin 3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    animation: smoothSpin 4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
 
 .wheel-prize {
@@ -2031,9 +2033,9 @@ input:invalid:not(:focus):not(:placeholder-shown) {
 
 .wheel-wrapper {
     position: relative;
-    width: 350px;
-    height: 350px;
-    margin: 30px auto;
+    width: 400px;
+    height: 400px;
+    margin: 40px auto;
 }
 
 .wheel {
@@ -2048,8 +2050,9 @@ input:invalid:not(:focus):not(:placeholder-shown) {
         #96ceb4 216deg 288deg,
         #feca57 288deg 360deg
     );
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-    transition: transform 3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+    transition: transform 4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    border: 8px solid #fff;
 }
 
 .wheel-center {
@@ -2057,16 +2060,17 @@ input:invalid:not(:focus):not(:placeholder-shown) {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 60px;
-    height: 60px;
-    background: white;
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #fff, #f8f9fa);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    font-size: 32px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
     z-index: 10;
+    border: 4px solid #e9ecef;
 }
 
 .prize-segment {
@@ -2078,51 +2082,71 @@ input:invalid:not(:focus):not(:placeholder-shown) {
 
 .prize-label {
     position: absolute;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: 6px;
-    padding: 6px 8px;
+    background: rgba(255, 255, 255, 0.98);
+    border-radius: 12px;
+    padding: 10px 12px;
     text-align: center;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-    border: 1px solid #fff;
-    min-width: 70px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    border: 2px solid #fff;
+    min-width: 90px;
     z-index: 5;
+    backdrop-filter: blur(5px);
 }
 
-.segment-1 .prize-label { transform: translateX(-50%) rotate(36deg); }
-.segment-2 .prize-label { transform: translateX(-50%) rotate(108deg); }
-.segment-3 .prize-label { transform: translateX(-50%) rotate(180deg); }
-.segment-4 .prize-label { transform: translateX(-50%) rotate(252deg); }
-.segment-5 .prize-label { transform: translateX(-50%) rotate(324deg); }
+/* Position each prize label correctly around the wheel */
+.segment-1 .prize-label { 
+    top: 15px; 
+    left: 50%; 
+    transform: translateX(-50%); 
+}
+.segment-2 .prize-label { 
+    top: 50%; 
+    right: 15px; 
+    transform: translateY(-50%); 
+}
+.segment-3 .prize-label { 
+    bottom: 15px; 
+    left: 50%; 
+    transform: translateX(-50%); 
+}
+.segment-4 .prize-label { 
+    top: 50%; 
+    left: 15px; 
+    transform: translateY(-50%); 
+}
+.segment-5 .prize-label { 
+    top: 25%; 
+    left: 25%; 
+}
 
 .prize-icon-wheel {
-    font-size: 18px;
-    margin-bottom: 2px;
+    font-size: 24px;
+    margin-bottom: 4px;
+    display: block;
 }
 
 .prize-name-wheel {
-    font-size: 9px;
+    font-size: 11px;
     font-weight: bold;
     color: #2c3e50;
-    line-height: 1.1;
+    line-height: 1.2;
+    white-space: nowrap;
 }
 
 .wheel-pointer {
     position: absolute;
-    top: -15px;
+    top: -20px;
     left: 50%;
     transform: translateX(-50%);
     width: 0;
     height: 0;
-    border-left: 15px solid transparent;
-    border-right: 15px solid transparent;
-    border-top: 30px solid #e74c3c;
+    border-left: 20px solid transparent;
+    border-right: 20px solid transparent;
+    border-top: 40px solid #e74c3c;
     z-index: 20;
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
 }
 
 .wheel.spinning {
-    animation: spin 3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    animation: smoothSpin 4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }

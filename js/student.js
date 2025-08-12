@@ -477,14 +477,21 @@ function submitQuiz(questions) {
         }
     });
     
+    console.log('🎯 Quiz completed! Score:', score);
+    console.log('🔍 Current player ID:', config.currentPlayerId);
+    
     // Save result to database if config is available
     if (typeof config !== 'undefined' && config.updateQuizResult) {
         config.updateQuizResult({
             score: score,
             timestamp: new Date().toISOString()
+        }).then(() => {
+            console.log('✅ Score saved successfully!');
         }).catch(error => {
             console.error('❌ Lỗi lưu điểm:', error);
         });
+    } else {
+        console.error('❌ Config or updateQuizResult not available');
     }
     
     // Show result
@@ -651,74 +658,64 @@ function showFinalScreen(decision) {
 
 // Show wheel (placeholder - you can implement this later)
 function showWheel() {
-    const quizContainer = document.getElementById('quiz-container');
-    quizContainer.innerHTML = `
-        <div class="logo">
-            <img src="assets/logo.svg" alt="Logo Trung Tâm" class="center-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-            <div class="logo-fallback" style="display: none;">🎓</div>
-            <h2>🎯 Vòng Quay May Mắn</h2>
-            <p>Chúc mừng bạn! Bạn đã đạt điều kiện tham gia vòng quay</p>
-        </div>
+    const wheel = document.getElementById('prize-wheel');
+    const spinBtn = document.getElementById('spin-btn');
+    const prizeResult = document.getElementById('prize-result');
+    
+    if (!wheel || !spinBtn) return;
+    
+    console.log('🎯 Spinning wheel...');
+    console.log('🔍 Current player ID:', config.currentPlayerId);
+    
+    // Disable button during spin
+    spinBtn.disabled = true;
+    spinBtn.textContent = '🔄 Đang quay...';
+    
+    // Random prize
+    const randomIndex = Math.floor(Math.random() * prizes.length);
+    currentPrize = prizes[randomIndex];
+    
+    console.log('🎁 Selected prize:', currentPrize);
+    
+    // Random rotation (multiple full rotations + prize position)
+    const baseRotation = 1440; // 4 full rotations
+    const prizeRotation = (360 / prizes.length) * randomIndex;
+    const finalRotation = baseRotation + prizeRotation;
+    
+    // Add spinning class
+    wheel.classList.add('spinning');
+    wheel.style.transform = `rotate(${finalRotation}deg)`;
+    
+    // Show result after animation
+    setTimeout(() => {
+        wheel.classList.remove('spinning');
         
-        <div class="wheel-container">
-            <div class="wheel-wrapper">
-                <div class="wheel" id="prize-wheel">
-                    <div class="wheel-center">
-                        <span>🎯</span>
-                    </div>
-                    <!-- Prize segments with labels -->
-                    <div class="prize-segment segment-1" style="--start: 0deg; --end: 72deg;">
-                        <div class="prize-label">
-                            <div class="prize-icon-wheel">✏️</div>
-                            <div class="prize-name-wheel">Bút viết</div>
-                        </div>
-                    </div>
-                    <div class="prize-segment segment-2" style="--start: 72deg; --end: 144deg;">
-                        <div class="prize-label">
-                            <div class="prize-icon-wheel">🎒</div>
-                            <div class="prize-name-wheel">Balo VAE</div>
-                        </div>
-                    </div>
-                    <div class="prize-segment segment-3" style="--start: 144deg; --end: 216deg;">
-                        <div class="prize-label">
-                            <div class="prize-icon-wheel">📚</div>
-                            <div class="prize-name-wheel">Giáo trình</div>
-                        </div>
-                    </div>
-                    <div class="prize-segment segment-4" style="--start: 216deg; --end: 288deg;">
-                        <div class="prize-label">
-                            <div class="prize-icon-wheel">📏</div>
-                            <div class="prize-name-wheel">Thước</div>
-                        </div>
-                    </div>
-                    <div class="prize-segment segment-5" style="--start: 288deg; --end: 360deg;">
-                        <div class="prize-label">
-                            <div class="prize-icon-wheel">👕</div>
-                            <div class="prize-name-wheel">Áo VAE</div>
-                        </div>
-                    </div>
-                </div>
-                <!-- Fixed pointer that doesn't move -->
-                <div class="wheel-pointer"></div>
-            </div>
-            
-            <button class="spin-button" id="spin-btn" onclick="spinWheel()">🎯 Quay Thưởng</button>
-            
-            <div id="prize-result" style="display: none;">
-                <h3>🎉 Chúc mừng bạn!</h3>
-                <div class="won-prize">
-                    <span class="prize-icon-large" id="won-prize-icon"></span>
-                    <div class="prize-name-large" id="won-prize-name"></div>
-                    <div class="prize-description" id="won-prize-description"></div>
-                </div>
-                
-                <div class="prize-actions">
-                    <button class="btn-primary" onclick="registerForPrize()">✅ Đăng ký nhận quà</button>
-                    <button class="btn-secondary" onclick="contactLater()">📞 Tôi sẽ liên hệ lại sau</button>
-                </div>
-            </div>
-        </div>
-    `;
+        // Update prize display
+        document.getElementById('won-prize-icon').textContent = currentPrize.icon;
+        document.getElementById('won-prize-name').textContent = currentPrize.name;
+        document.getElementById('won-prize-description').textContent = currentPrize.description;
+        
+        prizeResult.style.display = 'block';
+        spinBtn.style.display = 'none';
+        
+        console.log('🎉 Wheel stopped! Saving prize to Firebase...');
+        
+        // Save prize to Firebase
+        if (typeof config !== 'undefined' && config.updateWheelResult) {
+            config.updateWheelResult({
+                prize: currentPrize.name,
+                prizeIcon: currentPrize.icon,
+                prizeDescription: currentPrize.description,
+                timestamp: new Date().toISOString()
+            }).then(() => {
+                console.log('✅ Prize saved successfully!');
+            }).catch(error => {
+                console.error('❌ Lỗi lưu phần thưởng:', error);
+            });
+        } else {
+            console.error('❌ Config or updateWheelResult not available');
+        }
+    }, 4000); // Increased to 4 seconds to match CSS animation
 }
 
 // Prize wheel prizes
@@ -752,80 +749,46 @@ const prizes = [
 
 let currentPrize = null;
 
-function spinWheel() {
-    const wheel = document.getElementById('prize-wheel');
-    const spinBtn = document.getElementById('spin-btn');
-    const prizeResult = document.getElementById('prize-result');
-    
-    if (!wheel || !spinBtn) return;
-    
-    // Disable button during spin
-    spinBtn.disabled = true;
-    spinBtn.textContent = '🔄 Đang quay...';
-    
-    // Random prize
-    const randomIndex = Math.floor(Math.random() * prizes.length);
-    currentPrize = prizes[randomIndex];
-    
-    // Random rotation (multiple full rotations + prize position)
-    const baseRotation = 1440; // 4 full rotations
-    const prizeRotation = (360 / prizes.length) * randomIndex;
-    const finalRotation = baseRotation + prizeRotation;
-    
-    // Add spinning class
-    wheel.classList.add('spinning');
-    wheel.style.transform = `rotate(${finalRotation}deg)`;
-    
-    // Show result after animation
-    setTimeout(() => {
-        wheel.classList.remove('spinning');
-        
-        // Update prize display
-        document.getElementById('won-prize-icon').textContent = currentPrize.icon;
-        document.getElementById('won-prize-name').textContent = currentPrize.name;
-        document.getElementById('won-prize-description').textContent = currentPrize.description;
-        
-        prizeResult.style.display = 'block';
-        spinBtn.style.display = 'none';
-        
-        // Save prize to Firebase
-        if (typeof config !== 'undefined' && config.updateWheelResult) {
-            config.updateWheelResult({
-                prize: currentPrize.name,
-                prizeIcon: currentPrize.icon,
-                prizeDescription: currentPrize.description,
-                timestamp: new Date().toISOString()
-            }).catch(error => {
-                console.error('❌ Lỗi lưu phần thưởng:', error);
-            });
-        }
-    }, 3000);
-}
-
 function registerForPrize() {
+    console.log('✅ User chose to register for prize');
+    console.log('🔍 Current player ID:', config.currentPlayerId);
+    console.log('🎁 Prize:', currentPrize);
+    
     if (typeof config !== 'undefined' && config.updateFinalChoice) {
         config.updateFinalChoice({
             decision: true,
             prize: currentPrize.name,
             prizeIcon: currentPrize.icon,
             timestamp: new Date().toISOString()
+        }).then(() => {
+            console.log('✅ Final choice saved successfully!');
         }).catch(error => {
             console.error('❌ Lỗi lưu quyết định:', error);
         });
+    } else {
+        console.error('❌ Config or updateFinalChoice not available');
     }
     showFinalScreenWithPrize();
 }
 
 function contactLater() {
+    console.log('📞 User chose to contact later');
+    console.log('🔍 Current player ID:', config.currentPlayerId);
+    console.log('🎁 Prize:', currentPrize);
+    
     if (typeof config !== 'undefined' && config.updateFinalChoice) {
         config.updateFinalChoice({
             decision: false,
             prize: currentPrize.name,
             prizeIcon: currentPrize.icon,
             timestamp: new Date().toISOString()
+        }).then(() => {
+            console.log('✅ Final choice saved successfully!');
         }).catch(error => {
             console.error('❌ Lỗi lưu quyết định:', error);
         });
+    } else {
+        console.error('❌ Config or updateFinalChoice not available');
     }
     showFinalScreenContactLater();
 }
