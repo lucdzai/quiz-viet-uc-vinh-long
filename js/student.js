@@ -813,18 +813,39 @@ function spinWheel() {
     spinBtn.disabled = true;
     spinBtn.textContent = '🔄 Đang quay...';
     
-    // Random prize
-    const randomIndex = Math.floor(Math.random() * prizes.length);
-    currentPrize = prizes[randomIndex];
+    // Calculate random rotation first
+    const baseRotation = 1440; // 4 full rotations
+    const randomDegrees = Math.random() * 360; // Random degrees from 0-360
+    const finalRotation = baseRotation + randomDegrees;
     
+    console.log('🎯 Random rotation:', randomDegrees, 'degrees');
+    
+    // Calculate which segment the pointer will land on
+    // Since pointer is at top (0 degrees), we need to calculate based on final position
+    const normalizedRotation = randomDegrees % 360;
+    let segmentIndex;
+    
+    // Calculate segment based on final rotation position
+    // Each segment is 72 degrees (360/5)
+    if (normalizedRotation >= 0 && normalizedRotation < 72) {
+        segmentIndex = 0; // Bút viết (top)
+    } else if (normalizedRotation >= 72 && normalizedRotation < 144) {
+        segmentIndex = 1; // Balo VAE (right)
+    } else if (normalizedRotation >= 144 && normalizedRotation < 216) {
+        segmentIndex = 2; // Giáo trình (bottom)
+    } else if (normalizedRotation >= 216 && normalizedRotation < 288) {
+        segmentIndex = 3; // Thước (left)
+    } else {
+        segmentIndex = 4; // Áo VAE (top-left)
+    }
+    
+    // Get the prize based on segment index
+    currentPrize = prizes[segmentIndex];
+    
+    console.log('🎁 Wheel will land on segment:', segmentIndex);
     console.log('🎁 Selected prize:', currentPrize);
     
-    // Random rotation (multiple full rotations + prize position)
-    const baseRotation = 1440; // 4 full rotations
-    const prizeRotation = (360 / prizes.length) * randomIndex;
-    const finalRotation = baseRotation + prizeRotation;
-    
-    // Add spinning class
+    // Add spinning class and rotate
     wheel.classList.add('spinning');
     wheel.style.transform = `rotate(${finalRotation}deg)`;
     
@@ -977,7 +998,7 @@ function showFinalScreenWithPrize() {
     
     quizContainer.innerHTML = `
         <div class="logo">
-            <img src="assets/logo.svg" alt="Logo Trung Tâm" class="center-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+            <img src="${window.APP_BRANDING?.logoUrl || 'assets/logo.svg'}" alt="Logo Trung Tâm" class="center-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
             <div class="logo-fallback" style="display: none;">🎓</div>
             <h2>Trung Tâm Ngoại Ngữ Việt Úc Vĩnh Long</h2>
         </div>
