@@ -699,7 +699,7 @@ function showFinalScreen(decision) {
     
     quizContainer.innerHTML = `
         <div class="logo">
-            <img src="assets/logo.svg" alt="Logo Trung Tâm" class="center-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+            <img src="${window.APP_BRANDING?.logoUrl || 'assets/lg.png'}" alt="Logo Trung Tâm" class="center-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
             <div class="logo-fallback" style="display: none;">🎓</div>
             <h2>🎓 Trung Tâm Ngoại Ngữ Việt Úc Vĩnh Long</h2>
         </div>
@@ -1005,6 +1005,9 @@ function showFinalScreenWithPrize() {
             <button class="btn-primary" onclick="window.open('https://zalo.me/${CONFIG.CENTER_INFO.zalo}','_blank')">💬 Liên hệ Zalo</button>
             <button class="btn-secondary" onclick="location.reload()">🔄 Làm lại</button>
         </div>
+        <div class="thank-you" style="background:#fff3cd;color:#856404;margin-top:12px;padding:12px;border-radius:10px;">
+            <strong>Lưu ý:</strong> Phần thưởng sẽ được trao trực tiếp khi tham dự lớp học
+        </div>
     `;
 }
 
@@ -1013,7 +1016,7 @@ function showFinalScreenContactLater() {
     
     quizContainer.innerHTML = `
         <div class="logo">
-            <img src="assets/logo.svg" alt="Logo Trung Tâm" class="center-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+            <img src="${window.APP_BRANDING?.logoUrl || 'assets/logo.svg'}" alt="Logo Trung Tâm" class="center-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
             <div class="logo-fallback" style="display: none;">🎓</div>
             <h2>🎓 Trung Tâm Ngoại Ngữ Việt Úc Vĩnh Long</h2>
         </div>
@@ -1040,6 +1043,9 @@ function showFinalScreenContactLater() {
         <div class="final-actions">
             <button class="btn-primary" onclick="window.open('https://zalo.me/0372284333','_blank')">💬 Liên hệ Zalo</button>
             <button class="btn-secondary" onclick="location.reload()">🔄 Làm lại</button>
+        </div>
+        <div class="thank-you" style="background:#fff3cd;color:#856404;margin-top:12px;padding:12px;border-radius:10px;">
+            <strong>Lưu ý:</strong> Phần thưởng sẽ được trao trực tiếp khi tham dự lớp học
         </div>
     `;
 }
