@@ -993,12 +993,12 @@ function showFinalScreenWithPrize() {
         
         <div class="contact-info">
             <h3>📞 Thông tin liên hệ:</h3>
-            <p><strong>📘 Facebook:</strong> <a href="${CONFIG.CENTER_INFO.facebook}" target="_blank">trungtamngoainguVietUc</a></p>
-            <p><strong>📧 Email:</strong> ${CONFIG.CENTER_INFO.email}</p>
-            <p><strong>🌐 Website:</strong> ${CONFIG.CENTER_INFO.website.replace('https://','')}</p>
+            <p><strong>📘 Facebook:</strong> <a href="${CONFIG.CENTER_INFO.facebook}" target="_blank" style="text-decoration: none;">trungtamngoainguVietUc</a></p>
+            <p><strong>📧 Email:</strong> <a href="mailto:${CONFIG.CENTER_INFO.email}" style="text-decoration: none;">${CONFIG.CENTER_INFO.email}</a></p>
+            <p><strong>🌐 Website:</strong> <a href="${CONFIG.CENTER_INFO.website}" target="_blank" style="text-decoration: none;">${CONFIG.CENTER_INFO.website.replace('https://','')}</a></p>
             <p><strong>🏢 Địa chỉ:</strong> ${CONFIG.CENTER_INFO.address}</p>
-            <p><strong>☎️ Hotline:</strong> ${CONFIG.CENTER_INFO.hotline}</p>
-            <p><strong>💬 Zalo:</strong> <a href="https://zalo.me/${CONFIG.CENTER_INFO.zalo}" target="_blank">${CONFIG.CENTER_INFO.zalo}</a></p>
+            <p><strong>☎️ Hotline:</strong> <a href="tel:${CONFIG.CENTER_INFO.hotline}" style="text-decoration: none;">${CONFIG.CENTER_INFO.hotline}</a></p>
+            <p><strong>💬 Zalo:</strong> <a href="https://zalo.me/${CONFIG.CENTER_INFO.zalo}" target="_blank" style="text-decoration: none;">${CONFIG.CENTER_INFO.zalo}</a></p>
         </div>
         
         <div class="final-actions">
@@ -1029,12 +1029,12 @@ function showFinalScreenContactLater() {
         
         <div class="contact-info">
             <h3>📞 Thông tin liên hệ:</h3>
-            <p><strong>📘 Facebook:</strong> <a href="${CONFIG.CENTER_INFO.facebook}" target="_blank">trungtamngoainguVietUc</a></p>
-            <p><strong>📧 Email:</strong> ${CONFIG.CENTER_INFO.email}</p>
-            <p><strong>🌐 Website:</strong> ${CONFIG.CENTER_INFO.website.replace('https://','')}</p>
+            <p><strong>📘 Facebook:</strong> <a href="${CONFIG.CENTER_INFO.facebook}" target="_blank" style="text-decoration: none;">trungtamngoainguVietUc</a></p>
+            <p><strong>📧 Email:</strong> <a href="mailto:${CONFIG.CENTER_INFO.email}" style="text-decoration: none;">${CONFIG.CENTER_INFO.email}</a></p>
+            <p><strong>🌐 Website:</strong> <a href="${CONFIG.CENTER_INFO.website}" target="_blank" style="text-decoration: none;">${CONFIG.CENTER_INFO.website.replace('https://','')}</a></p>
             <p><strong>🏢 Địa chỉ:</strong> ${CONFIG.CENTER_INFO.address}</p>
-            <p><strong>☎️ Hotline:</strong> ${CONFIG.CENTER_INFO.hotline}</p>
-            <p><strong>💬 Zalo:</strong> <a href="https://zalo.me/${CONFIG.CENTER_INFO.zalo}" target="_blank">${CONFIG.CENTER_INFO.zalo}</a></p>
+            <p><strong>☎️ Hotline:</strong> <a href="tel:${CONFIG.CENTER_INFO.hotline}" style="text-decoration: none;">${CONFIG.CENTER_INFO.hotline}</a></p>
+            <p><strong>💬 Zalo:</strong> <a href="https://zalo.me/${CONFIG.CENTER_INFO.zalo}" target="_blank" style="text-decoration: none;">${CONFIG.CENTER_INFO.zalo}</a></p>
         </div>
         
         <div class="final-actions">
