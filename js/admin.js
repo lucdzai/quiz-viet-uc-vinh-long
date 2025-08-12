@@ -66,29 +66,32 @@ class AdminPanel {
             .sort(([,a], [,b]) => {
                 const timeA = new Date(a.startTime || 0).getTime();
                 const timeB = new Date(b.startTime || 0).getTime();
-                return timeA - timeB;
+                // Sort by most recent first so we keep latest record per phone
+                return timeB - timeA;
             });
 
         sortedEntries.forEach(([id, player]) => {
             if (!player) return;
             
             const phone = String(player.phone || '').trim();
-            if (!seenPhones.has(phone)) {
-                seenPhones.add(phone);
-                
-                this.playersList.set(id, {
-                    id,
-                    stt: player.stt || this.getNextSequence(),
-                    startTime: this.formatTimestamp(player.startTime),
-                    name: player.name || 'Chưa có tên',
-                    phone: phone || 'Chưa có SĐT',
-                    course: this.formatCourse(player.course),
-                    score: this.formatScore(player.score),
-                    prize: this.formatPrize(player.prize),
-                    finalDecision: this.formatDecision(player.finalDecision),
-                    rawData: player // Store raw data for additional info
-                });
-            }
+            if (!phone) return;
+
+            // Because entries are sorted by newest first, keep first occurrence per phone
+            if (seenPhones.has(phone)) return;
+            seenPhones.add(phone);
+
+            this.playersList.set(id, {
+                id,
+                stt: player.stt || this.getNextSequence(),
+                startTime: this.formatTimestamp(player.startTime || player.lastUpdated),
+                name: player.name || 'Chưa có tên',
+                phone: phone || 'Chưa có SĐT',
+                course: this.formatCourse(player.course),
+                score: this.formatScore(player.score),
+                prize: this.formatPrize(player.prize),
+                finalDecision: this.formatDecision(player.finalDecision),
+                rawData: player
+            });
         });
     }
 
@@ -142,7 +145,11 @@ class AdminPanel {
 
     formatPrize(prize) {
         if (!prize) return '⏳ Chưa quay';
-        return prize;
+        // Allow either plain string or object with name/icon
+        if (typeof prize === 'object') {
+            return prize.name || '⏳ Chưa quay';
+        }
+        return String(prize);
     }
 
     formatDecision(decision) {
