@@ -818,18 +818,33 @@ function spinWheel() {
     const randomDegrees = Math.random() * 360; // 0..360
     const finalRotation = baseRotation + randomDegrees;
 
-    // Compute which prize will be under the pointer at TOP (270°)
-    const normalized = (randomDegrees % 360 + 360) % 360; // 0..360
-    const pointerAngle = 270; // top
-    const landingAngle = (pointerAngle - normalized + 360) % 360; // 0..360 from RIGHT
-    const segmentAngle = 360 / prizes.length; // 72°
-    const segmentIndex = Math.floor(landingAngle / segmentAngle); // 0..4
+    // Calculate which segment the pointer lands on
+    // Pointer is at TOP (0°), so we need to find which segment ends up at top
+    const normalizedRotation = randomDegrees % 360;
+    
+    // Map rotation to segment (each segment is 72°)
+    // 0° = top (Bút viết), 72° = right (Balo VAE), 144° = bottom (Giáo trình), etc.
+    let segmentIndex;
+    if (normalizedRotation >= 0 && normalizedRotation < 72) {
+        segmentIndex = 0; // Bút viết (top)
+    } else if (normalizedRotation >= 72 && normalizedRotation < 144) {
+        segmentIndex = 1; // Balo VAE (right)
+    } else if (normalizedRotation >= 144 && normalizedRotation < 216) {
+        segmentIndex = 2; // Giáo trình (bottom)
+    } else if (normalizedRotation >= 216 && normalizedRotation < 288) {
+        segmentIndex = 3; // Thước (left)
+    } else {
+        segmentIndex = 4; // Áo VAE (top-left)
+    }
 
+    // Get the prize based on segment index
     currentPrize = prizes[segmentIndex];
 
-    console.log('🎯 random=', normalized.toFixed(2), 'landingAngle=', landingAngle.toFixed(2), 'segmentIndex=', segmentIndex, 'prize=', currentPrize.name);
+    console.log('🎯 Random rotation:', normalizedRotation.toFixed(2), 'degrees');
+    console.log('🎯 Landing on segment:', segmentIndex, '→', currentPrize.name);
+    console.log('🎯 Segment ranges: 0-72°=Bút, 72-144°=Balo, 144-216°=Giáo trình, 216-288°=Thước, 288-360°=Áo');
 
-    // Animate solely via CSS transition on transform (avoid CSS animation conflicts)
+    // Animate
     wheel.style.transform = `rotate(${finalRotation}deg)`;
 
     // Show result after transition (~4s)
