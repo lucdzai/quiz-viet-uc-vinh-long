@@ -659,17 +659,26 @@ function showWheel() {
                 <div class="wheel-center">
                     <span>🎯</span>
                 </div>
-            </div>
-            
-            <div class="prize-list">
-                <h3>🎁 Danh sách phần thưởng:</h3>
-                <div class="prize-items">
-                    ${prizes.map((prize, index) => `
-                        <div class="prize-item">
-                            <span class="prize-icon">${prize.icon}</span>
-                            <span class="prize-name">${prize.name}</span>
-                        </div>
-                    `).join('')}
+                <!-- Prize labels on wheel -->
+                <div class="wheel-prize wheel-prize-1" style="position: absolute; top: 10px; left: 50%; transform: translateX(-50%);">
+                    <div class="prize-icon-wheel">✏️</div>
+                    <div class="prize-name-wheel">Combo bút viết</div>
+                </div>
+                <div class="wheel-prize wheel-prize-2" style="position: absolute; top: 50%; right: 10px; transform: translateY(-50%);">
+                    <div class="prize-icon-wheel">🎒</div>
+                    <div class="prize-name-wheel">Balo VAE</div>
+                </div>
+                <div class="wheel-prize wheel-prize-3" style="position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);">
+                    <div class="prize-icon-wheel">📚</div>
+                    <div class="prize-name-wheel">Giáo trình</div>
+                </div>
+                <div class="wheel-prize wheel-prize-4" style="position: absolute; top: 50%; left: 10px; transform: translateY(-50%);">
+                    <div class="prize-icon-wheel">📏</div>
+                    <div class="prize-name-wheel">Thước</div>
+                </div>
+                <div class="wheel-prize wheel-prize-5" style="position: absolute; top: 25%; left: 25%; transform: rotate(45deg);">
+                    <div class="prize-icon-wheel">👕</div>
+                    <div class="prize-name-wheel">Áo VAE</div>
                 </div>
             </div>
             

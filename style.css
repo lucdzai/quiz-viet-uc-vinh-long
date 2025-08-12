@@ -2005,3 +2005,44 @@ input:invalid:not(:focus):not(:placeholder-shown) {
 .wheel.spinning {
     animation: spin 3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
+
+.wheel-prize {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 8px;
+    padding: 8px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    border: 2px solid #fff;
+    min-width: 80px;
+    z-index: 5;
+}
+
+.prize-icon-wheel {
+    font-size: 20px;
+    margin-bottom: 4px;
+}
+
+.prize-name-wheel {
+    font-size: 10px;
+    font-weight: bold;
+    color: #2c3e50;
+    line-height: 1.2;
+}
+
+/* Adjust wheel size to accommodate prize labels */
+.wheel {
+    width: 350px;
+    height: 350px;
+    border-radius: 50%;
+    margin: 30px auto;
+    position: relative;
+    background: conic-gradient(
+        #ff6b6b 0deg 72deg,
+        #4ecdc4 72deg 144deg,
+        #45b7d1 144deg 216deg,
+        #96ceb4 216deg 288deg,
+        #feca57 288deg 360deg
+    );
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    transition: transform 3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}

@@ -111,9 +111,11 @@ const config = {
                     const playerRef = window.firebase.database.ref(database, `players/${this.currentPlayerId}`);
                     await window.firebase.database.update(playerRef, {
                         prize: result.prize,
+                        prizeIcon: result.prizeIcon || '',
+                        prizeDescription: result.prizeDescription || '',
                         lastUpdated: window.firebase?.database?.serverTimestamp ? window.firebase.database.serverTimestamp() : new Date().toISOString()
                     });
-                    console.log('✅ Đã cập nhật phần thưởng');
+                    console.log('✅ Đã cập nhật phần thưởng:', result.prize);
                 }
             }
         } catch (error) {
@@ -134,9 +136,12 @@ const config = {
                     const playerRef = window.firebase.database.ref(database, `players/${this.currentPlayerId}`);
                     await window.firebase.database.update(playerRef, {
                         finalDecision: Boolean(result.decision),
+                        finalDecisionText: result.decision ? 'Đăng ký nhận quà' : 'Liên hệ lại sau',
+                        prize: result.prize || '',
+                        prizeIcon: result.prizeIcon || '',
                         lastUpdated: window.firebase?.database?.serverTimestamp ? window.firebase.database.serverTimestamp() : new Date().toISOString()
                     });
-                    console.log('✅ Đã cập nhật quyết định');
+                    console.log('✅ Đã cập nhật quyết định:', result.decision ? 'Đăng ký' : 'Liên hệ lại sau');
                 }
             }
         } catch (error) {

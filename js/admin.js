@@ -141,16 +141,13 @@ class AdminPanel {
     }
 
     formatPrize(prize) {
-        if (!prize) return 'Chưa quay thưởng';
-        if (typeof prize === 'string') {
-            return prize;
-        }
-        return this.prizeNames[prize] || 'Phần quà đặc biệt';
+        if (!prize) return '⏳ Chưa quay';
+        return prize;
     }
 
     formatDecision(decision) {
-        if (decision === true || decision === 'register') return '✅ Đăng ký';
-        if (decision === false || decision === 'decline') return '❌ Từ chối';
+        if (decision === true || decision === 'register') return '✅ Đăng ký nhận quà';
+        if (decision === false || decision === 'decline') return '📞 Liên hệ lại sau';
         return '⏳ Chưa quyết định';
     }
 
