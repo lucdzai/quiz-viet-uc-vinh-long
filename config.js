@@ -1,9 +1,11 @@
 const config = {
     // Player ID management
+    _currentPlayerId: null,
     get currentPlayerId() {
-        return localStorage.getItem('currentPlayerId');
+        return this._currentPlayerId || localStorage.getItem('currentPlayerId');
     },
     set currentPlayerId(id) {
+        this._currentPlayerId = id;
         if (id) {
             localStorage.setItem('currentPlayerId', id);
         } else {

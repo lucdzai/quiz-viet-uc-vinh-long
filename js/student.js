@@ -1,5 +1,8 @@
 console.log('🎯 Student.js file loaded!');
 
+// Global variable to store current user data
+let currentUser = {};
+
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🎯 Student.js DOMContentLoaded event fired!');
     
@@ -21,6 +24,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (typeof config !== 'undefined' && await config.initializePlayer(playerData)) {
                 console.log('✅ Player initialized, showing quiz...');
+                
+                // Store current user data globally
+                currentUser = { ...playerData };
+                console.log('💾 Current user stored:', currentUser);
                 
                 // Hide form and show quiz
                 const studentForm = document.getElementById('student-form');
@@ -654,32 +661,45 @@ function showWheel() {
         </div>
         
         <div class="wheel-container">
-            <div class="wheel" id="prize-wheel">
+            <div class="wheel-wrapper">
+                <div class="wheel" id="prize-wheel">
+                    <div class="wheel-center">
+                        <span>🎯</span>
+                    </div>
+                    <!-- Prize segments with labels -->
+                    <div class="prize-segment segment-1" style="--start: 0deg; --end: 72deg;">
+                        <div class="prize-label">
+                            <div class="prize-icon-wheel">✏️</div>
+                            <div class="prize-name-wheel">Bút viết</div>
+                        </div>
+                    </div>
+                    <div class="prize-segment segment-2" style="--start: 72deg; --end: 144deg;">
+                        <div class="prize-label">
+                            <div class="prize-icon-wheel">🎒</div>
+                            <div class="prize-name-wheel">Balo VAE</div>
+                        </div>
+                    </div>
+                    <div class="prize-segment segment-3" style="--start: 144deg; --end: 216deg;">
+                        <div class="prize-label">
+                            <div class="prize-icon-wheel">📚</div>
+                            <div class="prize-name-wheel">Giáo trình</div>
+                        </div>
+                    </div>
+                    <div class="prize-segment segment-4" style="--start: 216deg; --end: 288deg;">
+                        <div class="prize-label">
+                            <div class="prize-icon-wheel">📏</div>
+                            <div class="prize-name-wheel">Thước</div>
+                        </div>
+                    </div>
+                    <div class="prize-segment segment-5" style="--start: 288deg; --end: 360deg;">
+                        <div class="prize-label">
+                            <div class="prize-icon-wheel">👕</div>
+                            <div class="prize-name-wheel">Áo VAE</div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Fixed pointer that doesn't move -->
                 <div class="wheel-pointer"></div>
-                <div class="wheel-center">
-                    <span>🎯</span>
-                </div>
-                <!-- Prize labels on wheel -->
-                <div class="wheel-prize wheel-prize-1" style="position: absolute; top: 10px; left: 50%; transform: translateX(-50%);">
-                    <div class="prize-icon-wheel">✏️</div>
-                    <div class="prize-name-wheel">Combo bút viết</div>
-                </div>
-                <div class="wheel-prize wheel-prize-2" style="position: absolute; top: 50%; right: 10px; transform: translateY(-50%);">
-                    <div class="prize-icon-wheel">🎒</div>
-                    <div class="prize-name-wheel">Balo VAE</div>
-                </div>
-                <div class="wheel-prize wheel-prize-3" style="position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);">
-                    <div class="prize-icon-wheel">📚</div>
-                    <div class="prize-name-wheel">Giáo trình</div>
-                </div>
-                <div class="wheel-prize wheel-prize-4" style="position: absolute; top: 50%; left: 10px; transform: translateY(-50%);">
-                    <div class="prize-icon-wheel">📏</div>
-                    <div class="prize-name-wheel">Thước</div>
-                </div>
-                <div class="wheel-prize wheel-prize-5" style="position: absolute; top: 25%; left: 25%; transform: rotate(45deg);">
-                    <div class="prize-icon-wheel">👕</div>
-                    <div class="prize-name-wheel">Áo VAE</div>
-                </div>
             </div>
             
             <button class="spin-button" id="spin-btn" onclick="spinWheel()">🎯 Quay Thưởng</button>
