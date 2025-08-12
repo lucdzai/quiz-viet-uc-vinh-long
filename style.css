@@ -1148,30 +1148,30 @@ input:invalid:not(:focus):not(:placeholder-shown) {
     backdrop-filter: blur(5px);
 }
 
-/* Position each prize label correctly around the wheel for mobile */
+/* Position each prize label correctly around the wheel */
 .segment-1 .prize-label { 
-    top: 8px; 
+    top: 5%; 
     left: 50%; 
     transform: translateX(-50%); 
 }
 .segment-2 .prize-label { 
     top: 50%; 
-    right: 8px; 
+    right: 5%; 
     transform: translateY(-50%); 
 }
 .segment-3 .prize-label { 
-    bottom: 8px; 
+    bottom: 5%; 
     left: 50%; 
     transform: translateX(-50%); 
 }
 .segment-4 .prize-label { 
     top: 50%; 
-    left: 8px; 
+    left: 5%; 
     transform: translateY(-50%); 
 }
 .segment-5 .prize-label { 
-    top: 20%; 
-    left: 20%; 
+    top: 15%; 
+    left: 15%; 
 }
 
 .prize-icon-wheel {
@@ -2193,30 +2193,30 @@ input:invalid:not(:focus):not(:placeholder-shown) {
     backdrop-filter: blur(5px);
 }
 
-/* Position each prize label correctly around the wheel for mobile */
+/* Position each prize label correctly around the wheel */
 .segment-1 .prize-label { 
-    top: 8px; 
+    top: 5%; 
     left: 50%; 
     transform: translateX(-50%); 
 }
 .segment-2 .prize-label { 
     top: 50%; 
-    right: 8px; 
+    right: 5%; 
     transform: translateY(-50%); 
 }
 .segment-3 .prize-label { 
-    bottom: 8px; 
+    bottom: 5%; 
     left: 50%; 
     transform: translateX(-50%); 
 }
 .segment-4 .prize-label { 
     top: 50%; 
-    left: 8px; 
+    left: 5%; 
     transform: translateY(-50%); 
 }
 .segment-5 .prize-label { 
-    top: 20%; 
-    left: 20%; 
+    top: 15%; 
+    left: 15%; 
 }
 
 .prize-icon-wheel {

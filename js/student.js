@@ -818,21 +818,33 @@ function spinWheel() {
     const randomDegrees = Math.random() * 360; // 0..360
     const finalRotation = baseRotation + randomDegrees;
     
-    // Determine which wedge ends up under the pointer (pointer is at TOP = 270° in CSS conic coordinates)
-    const angleAtPointerTop = 270; // degrees
-    const normalizedRotation = randomDegrees % 360; // wheel rotation clockwise
-    const landingAngle = (angleAtPointerTop - normalizedRotation + 360) % 360; // convert to wheel's 0° reference (right)
-    const segmentAngle = 360 / prizes.length; // 72° per segment
-    const wedgeIndex = Math.floor(landingAngle / segmentAngle); // 0..4 starting from RIGHT going clockwise
-
-    // Map wedge index (starting at RIGHT) to our prize order [Top, Right, Bottom, Left, Top-Left]
-    const wedgeToPrizeIndex = [1, 2, 3, 4, 0];
-    const prizeIndex = wedgeToPrizeIndex[wedgeIndex];
-    currentPrize = prizes[prizeIndex];
-
-    console.log('🎯 randomDegrees =', randomDegrees.toFixed(2), 'normalized =', normalizedRotation.toFixed(2));
-    console.log('🎯 landingAngle =', landingAngle.toFixed(2), 'wedgeIndex =', wedgeIndex, 'prizeIndex =', prizeIndex);
-    console.log('🎁 Selected prize:', currentPrize);
+    // Calculate which segment the pointer lands on
+    // Pointer is at TOP (270° in CSS conic-gradient coordinates)
+    // We need to find which segment ends up at the top after rotation
+    const normalizedRotation = randomDegrees % 360;
+    
+    // Since pointer is at top, we calculate which segment lands at top
+    // Each segment is 72° (360/5)
+    let segmentIndex;
+    if (normalizedRotation >= 0 && normalizedRotation < 72) {
+        segmentIndex = 0; // Bút viết (top segment lands at top)
+    } else if (normalizedRotation >= 72 && normalizedRotation < 144) {
+        segmentIndex = 1; // Balo VAE (right segment lands at top)
+    } else if (normalizedRotation >= 144 && normalizedRotation < 216) {
+        segmentIndex = 2; // Giáo trình (bottom segment lands at top)
+    } else if (normalizedRotation >= 216 && normalizedRotation < 288) {
+        segmentIndex = 3; // Thước (left segment lands at top)
+    } else {
+        segmentIndex = 4; // Áo VAE (top-left segment lands at top)
+    }
+    
+    // Get the prize based on segment index
+    currentPrize = prizes[segmentIndex];
+    
+    console.log('🎯 Random rotation:', randomDegrees.toFixed(2), 'degrees');
+    console.log('🎯 Normalized rotation:', normalizedRotation.toFixed(2), 'degrees');
+    console.log('🎯 Landing on segment:', segmentIndex, '→', currentPrize.name);
+    console.log('🎯 Segment ranges: 0-72°=Bút, 72-144°=Balo, 144-216°=Giáo trình, 216-288°=Thước, 288-360°=Áo');
     
     // Animate
     wheel.classList.add('spinning');
