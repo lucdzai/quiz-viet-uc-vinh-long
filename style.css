@@ -11,13 +11,7 @@ body {
     justify-content: center;
     align-items: center;
     padding: 20px;
-    background-color: #f5f7fb;
-    background-image: url('assets/background.jpg');
-    background-repeat: no-repeat;
-    background-attachment: fixed;
-    background-position: center center;
-    /* Fit full image height to viewport to keep original ratio, show 2 sides */
-    background-size: auto 100%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .container {

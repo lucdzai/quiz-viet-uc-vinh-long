@@ -190,7 +190,7 @@ const CONFIG = {
         website: 'https://ngoainguvietuc.vn',
         facebook: 'https://www.facebook.com/trungtamngoainguVietUc',
         zalo: '0372284333',
-        logoUrl: 'assets/logo.svg'
+        logoUrl: 'assets/lg.svg'
     },
     
     // Cấu hình khác
@@ -203,10 +203,7 @@ const CONFIG = {
 
 // Branding config to allow swapping logo/background without touching code
 window.APP_BRANDING = {
-    // Replace after you upload your assets
-    logoUrl: (CONFIG?.CENTER_INFO?.logoUrl) || 'assets/logo.svg',
-    // Put your building/background image here, e.g., 'assets/center-bg.jpg'
-    backgroundUrl: 'assets/background.jpg'
+    logoUrl: (CONFIG?.CENTER_INFO?.logoUrl) || 'assets/lg.svg'
 };
 
 // Legacy database helper functions for backward compatibility
