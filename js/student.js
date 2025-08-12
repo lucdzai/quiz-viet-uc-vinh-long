@@ -979,7 +979,7 @@ function showFinalScreenWithPrize() {
         <div class="logo">
             <img src="assets/logo.svg" alt="Logo Trung Tâm" class="center-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
             <div class="logo-fallback" style="display: none;">🎓</div>
-            <h2>🎓 Trung Tâm Ngoại Ngữ Việt Úc Vĩnh Long</h2>
+            <h2>Trung Tâm Ngoại Ngữ Việt Úc Vĩnh Long</h2>
         </div>
         
         <div class="final-message" style="color: #27ae60;">
@@ -1018,7 +1018,7 @@ function showFinalScreenContactLater() {
         <div class="logo">
             <img src="${window.APP_BRANDING?.logoUrl || 'assets/logo.svg'}" alt="Logo Trung Tâm" class="center-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
             <div class="logo-fallback" style="display: none;">🎓</div>
-            <h2>🎓 Trung Tâm Ngoại Ngữ Việt Úc Vĩnh Long</h2>
+            <h2>Trung Tâm Ngoại Ngữ Việt Úc Vĩnh Long</h2>
         </div>
         
         <div class="final-message" style="color: #f39c12;">
