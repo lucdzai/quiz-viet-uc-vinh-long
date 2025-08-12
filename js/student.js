@@ -800,71 +800,51 @@ function spinWheel() {
     const wheel = document.getElementById('prize-wheel');
     const spinBtn = document.getElementById('spin-btn');
     const prizeResult = document.getElementById('prize-result');
-    
+
     if (!wheel || !spinBtn) {
         console.error('❌ Wheel elements not found');
         return;
     }
-    
+
     console.log('🎯 Spinning wheel...');
     console.log('🔍 Current player ID:', config.currentPlayerId);
-    
+
     // Disable button during spin
     spinBtn.disabled = true;
     spinBtn.textContent = '🔄 Đang quay...';
-    
-    // Random total rotation
-    const baseRotation = 1440; // 4 full rotations
+
+    // Random rotation
+    const baseRotation = 1440; // 4 full turns for animation
     const randomDegrees = Math.random() * 360; // 0..360
     const finalRotation = baseRotation + randomDegrees;
-    
-    // Calculate which segment the pointer lands on
-    // Pointer is at TOP (270° in CSS conic-gradient coordinates)
-    // We need to find which segment ends up at the top after rotation
-    const normalizedRotation = randomDegrees % 360;
-    
-    // Since pointer is at top, we calculate which segment lands at top
-    // Each segment is 72° (360/5)
-    let segmentIndex;
-    if (normalizedRotation >= 0 && normalizedRotation < 72) {
-        segmentIndex = 0; // Bút viết (top segment lands at top)
-    } else if (normalizedRotation >= 72 && normalizedRotation < 144) {
-        segmentIndex = 1; // Balo VAE (right segment lands at top)
-    } else if (normalizedRotation >= 144 && normalizedRotation < 216) {
-        segmentIndex = 2; // Giáo trình (bottom segment lands at top)
-    } else if (normalizedRotation >= 216 && normalizedRotation < 288) {
-        segmentIndex = 3; // Thước (left segment lands at top)
-    } else {
-        segmentIndex = 4; // Áo VAE (top-left segment lands at top)
-    }
-    
-    // Get the prize based on segment index
+
+    // Compute which prize will be under the pointer at TOP (270°)
+    const normalized = (randomDegrees % 360 + 360) % 360; // 0..360
+    const pointerAngle = 270; // top
+    const landingAngle = (pointerAngle - normalized + 360) % 360; // 0..360 from RIGHT
+    const segmentAngle = 360 / prizes.length; // 72°
+    const segmentIndex = Math.floor(landingAngle / segmentAngle); // 0..4
+
     currentPrize = prizes[segmentIndex];
-    
-    console.log('🎯 Random rotation:', randomDegrees.toFixed(2), 'degrees');
-    console.log('🎯 Normalized rotation:', normalizedRotation.toFixed(2), 'degrees');
-    console.log('🎯 Landing on segment:', segmentIndex, '→', currentPrize.name);
-    console.log('🎯 Segment ranges: 0-72°=Bút, 72-144°=Balo, 144-216°=Giáo trình, 216-288°=Thước, 288-360°=Áo');
-    
-    // Animate
-    wheel.classList.add('spinning');
+
+    console.log('🎯 random=', normalized.toFixed(2), 'landingAngle=', landingAngle.toFixed(2), 'segmentIndex=', segmentIndex, 'prize=', currentPrize.name);
+
+    // Animate solely via CSS transition on transform (avoid CSS animation conflicts)
     wheel.style.transform = `rotate(${finalRotation}deg)`;
-    
-    // Show result after animation
+
+    // Show result after transition (~4s)
     setTimeout(() => {
-        wheel.classList.remove('spinning');
-        
         // Update prize display
         document.getElementById('won-prize-icon').textContent = currentPrize.icon;
         document.getElementById('won-prize-name').textContent = currentPrize.name;
         document.getElementById('won-prize-description').textContent = currentPrize.description;
-        
+
         prizeResult.style.display = 'block';
         launchConfetti();
         spinBtn.style.display = 'none';
-        
+
         console.log('🎉 Wheel stopped! Saving prize to Firebase...');
-        
+
         // Save prize to Firebase
         if (typeof config !== 'undefined' && config.updateWheelResult) {
             config.updateWheelResult({
@@ -880,7 +860,7 @@ function spinWheel() {
         } else {
             console.error('❌ Config or updateWheelResult not available');
         }
-    }, 4000); // 4 seconds to match CSS animation
+    }, 4000);
 }
 
 // Simple confetti effect
