@@ -602,6 +602,17 @@ function showFinalScreen(decision) {
     const decisionText = decision === 'register' ? 'ĐĂNG KÝ' : 'ĐỂ SAU';
     const decisionColor = decision === 'register' ? '#27ae60' : '#f39c12';
     
+    let prizeSection = '';
+    if (decision === 'register') {
+        prizeSection = `
+            <div class="prize-info">
+                <h3>🎁 Ưu Đãi Đặc Biệt</h3>
+                <div class="prize-name">🎁 Học bổng 15% khóa học</div>
+                <p><strong>Trung tâm đã ghi nhận thông tin và sẽ trao quà trực tiếp khi bạn tham dự lớp học!</strong></p>
+            </div>
+        `;
+    }
+    
     quizContainer.innerHTML = `
         <div class="logo">
             <img src="assets/logo.svg" alt="Logo Trung Tâm" class="center-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
@@ -613,6 +624,8 @@ function showFinalScreen(decision) {
             <h3>🎉 Cảm ơn bạn đã tham gia!</h3>
             <p>Bạn đã chọn: <strong>${decisionText}</strong></p>
         </div>
+        
+        ${prizeSection}
         
         <div class="contact-info">
             <h3>📞 Thông tin liên hệ:</h3>
@@ -640,11 +653,127 @@ function showWheel() {
             <p>Chúc mừng bạn! Bạn đã đạt điều kiện tham gia vòng quay</p>
         </div>
         
-        <div class="wheel-placeholder">
-            <p>🎡 Vòng quay sẽ được hiển thị ở đây</p>
-            <p>Chức năng này đang được phát triển...</p>
+        <div class="wheel-container">
+            <div class="wheel" id="prize-wheel">
+                <div class="wheel-pointer"></div>
+            </div>
+            
+            <button class="spin-button" id="spin-btn" onclick="spinWheel()">🎯 Quay Thưởng</button>
+            
+            <div id="prize-result" style="display: none;">
+                <h3>🎉 Chúc mừng bạn!</h3>
+                <p>Bạn đã trúng: <span id="prize-name"></span></p>
+            </div>
         </div>
         
-        <button class="btn-primary" onclick="showFinalScreen('register')">🎓 Đăng ký khóa học</button>
+        <div class="final-actions">
+            <button class="btn-primary" onclick="showFinalScreenWithPrize()">🎓 Đăng ký khóa học</button>
+        </div>
     `;
+}
+
+// Prize wheel prizes
+const prizes = [
+    "🎁 Học bổng 50% khóa học",
+    "🎁 Học bổng 30% khóa học", 
+    "🎁 Học bổng 20% khóa học",
+    "🎁 Tài liệu học tập miễn phí",
+    "🎁 Khóa học online miễn phí",
+    "🎁 Sách giáo khoa miễn phí",
+    "🎁 Bộ dụng cụ học tập",
+    "🎁 Voucher giảm giá 100k"
+];
+
+let currentPrize = null;
+
+function spinWheel() {
+    const wheel = document.getElementById('prize-wheel');
+    const spinBtn = document.getElementById('spin-btn');
+    const prizeResult = document.getElementById('prize-result');
+    
+    if (!wheel || !spinBtn) return;
+    
+    // Disable button during spin
+    spinBtn.disabled = true;
+    spinBtn.textContent = '🔄 Đang quay...';
+    
+    // Random prize
+    const randomIndex = Math.floor(Math.random() * prizes.length);
+    currentPrize = prizes[randomIndex];
+    
+    // Random rotation (multiple full rotations + prize position)
+    const baseRotation = 1440; // 4 full rotations
+    const prizeRotation = (360 / prizes.length) * randomIndex;
+    const finalRotation = baseRotation + prizeRotation;
+    
+    // Add spinning class
+    wheel.classList.add('spinning');
+    wheel.style.transform = `rotate(${finalRotation}deg)`;
+    
+    // Show result after animation
+    setTimeout(() => {
+        wheel.classList.remove('spinning');
+        document.getElementById('prize-name').textContent = currentPrize;
+        prizeResult.style.display = 'block';
+        spinBtn.style.display = 'none';
+        
+        // Save prize to Firebase
+        if (typeof config !== 'undefined' && config.updateWheelResult) {
+            config.updateWheelResult({
+                prize: currentPrize,
+                timestamp: new Date().toISOString()
+            }).catch(error => {
+                console.error('❌ Lỗi lưu phần thưởng:', error);
+            });
+        }
+    }, 3000);
+}
+
+function showFinalScreenWithPrize() {
+    const quizContainer = document.getElementById('quiz-container');
+    const decisionText = 'ĐĂNG KÝ';
+    const decisionColor = '#27ae60';
+    
+    quizContainer.innerHTML = `
+        <div class="logo">
+            <img src="assets/logo.svg" alt="Logo Trung Tâm" class="center-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+            <div class="logo-fallback" style="display: none;">🎓</div>
+            <h2>🎓 Trung Tâm Ngoại Ngữ Việt Úc Vĩnh Long</h2>
+        </div>
+        
+        <div class="final-message" style="color: ${decisionColor};">
+            <h3>🎉 Cảm ơn bạn đã tham gia!</h3>
+            <p>Bạn đã chọn: <strong>${decisionText}</strong></p>
+        </div>
+        
+        <div class="prize-info">
+            <h3>🎁 Phần Thưởng Của Bạn</h3>
+            <div class="prize-name">${currentPrize || '🎁 Học bổng đặc biệt'}</div>
+            <p><strong>Trung tâm đã ghi nhận thông tin và sẽ trao quà trực tiếp khi bạn tham dự lớp học!</strong></p>
+        </div>
+        
+        <div class="contact-info">
+            <h3>📞 Thông tin liên hệ:</h3>
+            <p><strong>🏢 Địa chỉ:</strong> Số 36/7, đường Trần Phú, Phường Phước Hậu, Tỉnh Vĩnh Long</p>
+            <p><strong>📱 Hotline:</strong> 02703.912.007</p>
+            <p><strong>📧 Email:</strong> ngoainguvietuceducation@gmail.com</p>
+            <p><strong>🌐 Website:</strong> ngoainguvietuc.vn</p>
+        </div>
+        
+        <div class="final-actions">
+            <button class="btn-primary" onclick="window.open('tel:02703.912.007')">📞 Gọi ngay</button>
+            <button class="btn-secondary" onclick="location.reload()">🔄 Làm lại</button>
+        </div>
+    `;
+    
+    // Save final decision to Firebase
+    if (typeof config !== 'undefined' && config.updateFinalChoice) {
+        config.updateFinalChoice({
+            decision: true,
+            prize: currentPrize,
+            timestamp: new Date().toISOString()
+        }).catch(error => {
+            console.error('❌ Lỗi lưu quyết định cuối:', error);
+        });
+    }
 }
