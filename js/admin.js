@@ -57,7 +57,8 @@ class AdminPanel {
     }
 
     updatePlayersList(data) {
-        const seenPhones = new Set();
+        // Track unique pairs of (phone + course) so mỗi SDT có thể xuất hiện nhiều dòng (mỗi khóa 1 lần)
+        const seenPhoneCourse = new Set();
         this.playersList.clear();
 
         if (!data) return;
@@ -74,11 +75,13 @@ class AdminPanel {
             if (!player) return;
             
             const phone = String(player.phone || '').trim();
+            const course = String(player.course || '').trim();
             if (!phone) return;
 
-            // Because entries are sorted by newest first, keep first occurrence per phone
-            if (seenPhones.has(phone)) return;
-            seenPhones.add(phone);
+            // Because entries are sorted by newest first, keep first occurrence per phone+course
+            const compositeKey = `${phone}||${course}`;
+            if (seenPhoneCourse.has(compositeKey)) return;
+            seenPhoneCourse.add(compositeKey);
 
             this.playersList.set(id, {
                 id,
