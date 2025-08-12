@@ -1,5 +1,7 @@
+console.log('🎯 Student.js file loaded!');
+
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🎯 Student.js loaded successfully!');
+    console.log('🎯 Student.js DOMContentLoaded event fired!');
     
     // Initialize player data when form is submitted
     const form = document.getElementById('info-form');
