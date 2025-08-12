@@ -1,27 +1,41 @@
 document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🎯 Student.js loaded successfully!');
+    
     // Initialize player data when form is submitted
     const form = document.getElementById('info-form');
     if (form) {
+        console.log('✅ Form found, setting up submit handler');
         form.onsubmit = async (e) => {
             e.preventDefault();
+            console.log('🚀 Form submitted!');
             
             const playerData = {
                 name: document.getElementById('student-name').value,
                 phone: document.getElementById('student-phone').value,
                 course: document.getElementById('student-class').value
             };
+            
+            console.log('📝 Player data:', playerData);
 
             if (typeof config !== 'undefined' && await config.initializePlayer(playerData)) {
+                console.log('✅ Player initialized, showing quiz...');
+                
                 // Hide form and show quiz
                 const studentForm = document.getElementById('student-form');
                 const quizSection = document.getElementById('quiz-container');
                 
-                if (studentForm) studentForm.style.display = 'none';
+                if (studentForm) {
+                    studentForm.style.display = 'none';
+                    console.log('✅ Form hidden');
+                }
+                
                 if (quizSection) {
                     quizSection.style.display = 'block';
+                    console.log('✅ Quiz container shown');
                     // Show quiz content
                     showQuiz(playerData.course);
                 } else {
+                    console.log('❌ Quiz container not found');
                     // If quiz-container doesn't exist, try alternative IDs
                     const altQuiz = document.getElementById('quizSection') || document.getElementById('quiz');
                     if (altQuiz) {
@@ -29,8 +43,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                         showQuiz(playerData.course);
                     }
                 }
+            } else {
+                console.log('❌ Failed to initialize player');
             }
         };
+    } else {
+        console.log('❌ Form not found!');
     }
 });
 

@@ -323,32 +323,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (await config.initializePlayer(playerData)) {
                 console.log('✅ Đã lưu thông tin:', playerData);
                 
-                // Show loading screen
-                const loadingScreen = document.createElement('div');
-                loadingScreen.innerHTML = `
-                    <div class="loading-overlay">
-                        <div class="loading-spinner"></div>
-                        <p>Đang chuyển trang...</p>
-                    </div>
-                `;
-                document.body.appendChild(loadingScreen);
-
-                // Transition to quiz section
-                setTimeout(() => {
-                    try {
-                        if (typeof showQuizSection === 'function') {
-                            showQuizSection();
-                        } else {
-                            throw new Error('Không tìm thấy hàm showQuizSection');
-                        }
-                    } catch (error) {
-                        console.error('❌ Lỗi chuyển trang:', error);
-                        alert('Có lỗi khi chuyển trang: ' + error.message);
-                    } finally {
-                        // Remove loading screen
-                        loadingScreen.remove();
-                    }
-                }, 1000);
+                // Logic này đã được xử lý trong student.js
+                // Không cần làm gì thêm ở đây
+                console.log('🎯 Chuyển sang student.js để hiển thị quiz');
             }
         } catch (error) {
             console.error('❌ Lỗi:', error);
