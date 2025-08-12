@@ -16,14 +16,15 @@ const config = {
     connectionStatus: false,
     
     async initializePlayer(playerData) {
-        if (!this.connectionStatus) {
+        if (!this.isConnected()) {
             throw new Error('Không có kết nối đến máy chủ');
         }
         
         try {
-            const phoneQuery = await this.checkPhoneExists(playerData.phone);
-            if (phoneQuery) {
-                throw new Error('Số điện thoại đã được sử dụng!');
+            // Kiểm tra số điện thoại đã được sử dụng cho khóa học này chưa
+            const phoneCourseExists = await this.checkPhoneCourseExists(playerData.phone, playerData.course);
+            if (phoneCourseExists) {
+                throw new Error(`Số điện thoại ${playerData.phone} đã được sử dụng cho khóa học ${this.getCourseDisplayName(playerData.course)}!`);
             }
 
             const timestamp = Date.now();
@@ -57,6 +58,31 @@ const config = {
         }
     },
 
+    async checkPhoneCourseExists(phone, course) {
+        try {
+            if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
+                const database = FirebaseConfig.getDatabase();
+                if (database && window.firebase?.database?.ref && window.firebase?.database?.get) {
+                    const playersRef = window.firebase.database.ref(database, 'players');
+                    const snapshot = await window.firebase.database.get(playersRef);
+                    
+                    if (snapshot.exists()) {
+                        const players = snapshot.val();
+                        // Kiểm tra xem số điện thoại này đã được sử dụng cho khóa học này chưa
+                        return Object.values(players).some(player => 
+                            player.phone === phone && player.course === course
+                        );
+                    }
+                }
+            }
+            return false;
+        } catch (error) {
+            console.error('❌ Lỗi kiểm tra số điện thoại và khóa học:', error);
+            return false;
+        }
+    },
+
+    // Giữ lại hàm cũ để tương thích ngược
     async checkPhoneExists(phone) {
         try {
             if (typeof FirebaseConfig !== 'undefined' && FirebaseConfig.getDatabase) {
@@ -166,6 +192,21 @@ const config = {
             console.error('❌ Lỗi lấy số thứ tự:', error);
             return Date.now();
         }
+    },
+
+    // Hàm helper để lấy tên hiển thị khóa học
+    getCourseDisplayName(courseType) {
+        const displayNames = {
+            'tieu-hoc': 'Khối Tiểu học (Starters - Movers - Flyers)',
+            'thcs': 'Khối THCS (Pre-KET - PET)', 
+            'thpt': 'Luyện thi THPT',
+            'tieng-trung': 'Tiếng Trung cơ bản',
+            'tieng-trung-11': 'Tiếng Trung cơ bản 1-1',
+            'tieng-anh-giao-tiep': 'Tiếng Anh giao tiếp',
+            'tieng-anh-giao-tiep-11': 'Tiếng Anh giao tiếp 1-1',
+            'chung-chi': 'Luyện thi chứng chỉ (B1, B2, TOEIC, IELTS)'
+        };
+        return displayNames[courseType] || courseType;
     }
 };
 
